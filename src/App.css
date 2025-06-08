@@ -424,6 +424,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   gap: 1.5rem;
+  width: 100%;
 }
 
 .device-card {
@@ -452,6 +453,7 @@ body {
   padding: 0.75rem;
   border-radius: var(--border-radius);
   color: var(--color-primary);
+  position: relative;
 }
 
 .device-name {
@@ -465,6 +467,15 @@ body {
   font-size: 0.75rem;
   color: var(--color-gray-500);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.device-status {
+  font-size: 0.75rem;
+  color: var(--color-gray-600);
+  margin: 0.25rem 0 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* ===== Device Details ===== */
@@ -555,6 +566,7 @@ body {
 /* ===== Tenant Portal ===== */
 .tenant-portal {
   min-height: 100vh;
+  width: 100%;
   background-color: var(--color-gray-50);
 }
 
@@ -562,15 +574,16 @@ body {
   background-color: var(--color-white);
   border-bottom: 1px solid var(--color-gray-200);
   box-shadow: var(--shadow-sm);
-  padding: 1.5rem 2rem;
+  padding: 1rem 1rem;
+  width: 100%;
 }
 
 .portal-header-content {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
 }
 
 .portal-branding {
@@ -614,12 +627,11 @@ body {
 
 /* ===== Dashboard Stats ===== */
 .dashboard-stats {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
+  width: 100%;
+  padding: 1rem;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .stat-card {
@@ -681,9 +693,8 @@ body {
 
 /* ===== Device Management Section ===== */
 .device-management {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem 2rem 2rem;
+  width: 100%;
+  padding: 0 1rem 1rem 1rem;
 }
 
 .section-header {
@@ -1115,24 +1126,29 @@ body {
 /* ===== Responsive Design ===== */
 @media (max-width: 768px) {
   .header-content {
-    padding: 1rem;
+    padding: 0.75rem;
   }
   
   .main-content {
-    padding: 1rem;
+    padding: 0;
   }
   
   .tenant-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 0.75rem;
   }
   
   .devices-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 0 0.75rem;
   }
   
   .tenant-header {
     flex-direction: column;
     align-items: flex-start;
+    padding: 0 0.75rem;
   }
   
   .devices-header {
@@ -1147,22 +1163,51 @@ body {
   
   /* Tenant Portal Mobile */
   .portal-header {
-    padding: 1rem;
+    padding: 0.75rem;
   }
   
   .portal-header-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  
+  .portal-title h1 {
+    font-size: 1.25rem;
+  }
+  
+  .tenant-name {
+    font-size: 0.8rem;
+  }
+  
+  .last-updated {
+    font-size: 0.8rem;
   }
   
   .dashboard-stats {
+    padding: 0.75rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  
+  .stat-card {
     padding: 1rem;
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  
+  .stat-number {
+    font-size: 1.5rem;
   }
   
   .device-management {
-    padding: 0 1rem 1rem 1rem;
+    padding: 0 0.75rem 0.75rem 0.75rem;
+  }
+  
+  .section-header h2 {
+    font-size: 1.25rem;
   }
   
   .device-controls {
@@ -1175,6 +1220,7 @@ body {
   
   .device-metrics {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
   
   .device-stats {
@@ -1183,6 +1229,19 @@ body {
   
   .action-btn {
     min-width: auto;
+    width: 100%;
+  }
+  
+  .tenant-device-card {
+    margin: 0;
+  }
+  
+  .device-header {
+    margin-bottom: 1rem;
+  }
+  
+  .device-name {
+    font-size: 1rem;
   }
 }
 
@@ -1359,5 +1418,34 @@ body {
   .irrigation-btn {
     width: 100%;
     padding: 0.875rem;
+  }
+}
+
+/* Extra small screens (mobile phones) */
+@media (max-width: 480px) {
+  .portal-header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+    padding: 0.5rem;
+  }
+  
+  .stat-card {
+    padding: 0.75rem;
+  }
+  
+  .device-management {
+    padding: 0 0.5rem 0.5rem 0.5rem;
+  }
+  
+  .tenant-device-card {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    margin: 0 -0.5rem;
   }
 }

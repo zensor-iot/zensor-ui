@@ -48,12 +48,15 @@ const TenantPortal = () => {
         throw new Error(`Failed to fetch devices`)
       }
       const data = await response.json()
-      // Simulate device status (in real app, this would come from the API)
+      // Use real device status and timestamp from API
       const devicesWithStatus = (data.data || []).map(device => ({
         ...device,
-        status: Math.random() > 0.3 ? 'online' : 'offline',
-        lastSeen: new Date(Date.now() - Math.random() * 86400000), // Random last seen within 24h
-        batteryLevel: Math.floor(Math.random() * 100),
+        // Use real status from API
+        status: device.status,
+        // Use real last message timestamp from API
+        lastSeen: device.last_message_received_at ? new Date(device.last_message_received_at) : null,
+        // Keep simulated values for metrics not yet implemented in API
+        batteryLevel: 100, // Always show 100% battery
         signalStrength: Math.floor(Math.random() * 100)
       }))
       setDevices(devicesWithStatus)
@@ -63,8 +66,6 @@ const TenantPortal = () => {
       setLoading(false)
     }
   }
-
-
 
   const handleUpdateDisplayName = async (deviceId, displayName) => {
     try {
@@ -94,8 +95,6 @@ const TenantPortal = () => {
       throw new Error(`Failed to update display name: ${err.message}`)
     }
   }
-
-
 
   const deviceStats = {
     total: devices.length,
@@ -193,8 +192,6 @@ const TenantPortal = () => {
         <div className="section-header">
           <h2>Your Devices</h2>
         </div>
-
-
 
         {/* Device Grid */}
         {loading ? (

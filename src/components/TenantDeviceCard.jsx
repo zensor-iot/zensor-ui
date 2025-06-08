@@ -36,6 +36,8 @@ const TenantDeviceCard = ({ device, onUpdateDisplayName }) => {
   }
 
   const formatLastSeen = (date) => {
+    if (!date) return 'Never'
+    
     const now = new Date()
     const diffInMinutes = Math.floor((now - date) / (1000 * 60))
     
@@ -230,19 +232,7 @@ const TenantDeviceCard = ({ device, onUpdateDisplayName }) => {
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="device-stats">
-        <div className="stat-item">
-          <span className="stat-label">Uptime</span>
-          <span className="stat-value">
-            {device.status === 'online' ? '99.2%' : 'N/A'}
-          </span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">Data Usage</span>
-          <span className="stat-value">2.3 MB</span>
-        </div>
-      </div>
+
 
       {/* Irrigation Control */}
       <div className="irrigation-control">
