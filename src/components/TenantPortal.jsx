@@ -8,10 +8,7 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  AlertCircle,
-  Plus,
-  Search,
-  Filter
+  AlertCircle
 } from 'lucide-react'
 import TenantDeviceCard from './TenantDeviceCard'
 
@@ -21,8 +18,6 @@ const TenantPortal = () => {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all') // all, online, offline
 
   useEffect(() => {
     fetchTenantInfo()
@@ -69,16 +64,7 @@ const TenantPortal = () => {
     }
   }
 
-  const handleDeviceAction = async (deviceId, action) => {
-    try {
-      console.log(`Performing ${action} on device ${deviceId}`)
-      // TODO: Implement device actions (restart, configure, etc.)
-      // For now, just show feedback
-      alert(`${action} command sent to device successfully!`)
-    } catch (err) {
-      alert(`Failed to ${action} device: ${err.message}`)
-    }
-  }
+
 
   const handleUpdateDisplayName = async (deviceId, displayName) => {
     try {
@@ -109,11 +95,7 @@ const TenantPortal = () => {
     }
   }
 
-  const filteredDevices = devices.filter(device => {
-    const matchesSearch = device.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesFilter = filterStatus === 'all' || device.status === filterStatus
-    return matchesSearch && matchesFilter
-  })
+
 
   const deviceStats = {
     total: devices.length,
@@ -210,39 +192,9 @@ const TenantPortal = () => {
       <section className="device-management">
         <div className="section-header">
           <h2>Your Devices</h2>
-          <div className="section-actions">
-            <button className="add-device-btn">
-              <Plus size={16} />
-              Add Device
-            </button>
-          </div>
         </div>
 
-        {/* Search and Filter */}
-        <div className="device-controls">
-          <div className="search-box">
-            <Search className="search-icon" />
-            <input
-              type="text"
-              placeholder="Search devices by name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-          </div>
-          <div className="filter-controls">
-            <Filter className="filter-icon" />
-            <select 
-              value={filterStatus} 
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="filter-select"
-            >
-              <option value="all">All Devices</option>
-              <option value="online">Online Only</option>
-              <option value="offline">Offline Only</option>
-            </select>
-          </div>
-        </div>
+
 
         {/* Device Grid */}
         {loading ? (
@@ -250,35 +202,18 @@ const TenantPortal = () => {
             <Loader2 className="loading-spinner" />
             <p>Loading your devices...</p>
           </div>
-        ) : filteredDevices.length === 0 ? (
+        ) : devices.length === 0 ? (
           <div className="empty-state">
             <Cpu size={64} className="empty-icon" />
-            <h3>
-              {searchTerm || filterStatus !== 'all' 
-                ? 'No devices match your filters' 
-                : 'No devices found'
-              }
-            </h3>
-            <p>
-              {searchTerm || filterStatus !== 'all'
-                ? 'Try adjusting your search or filter criteria'
-                : 'Add your first device to start monitoring your IoT fleet'
-              }
-            </p>
-            {!searchTerm && filterStatus === 'all' && (
-              <button className="primary-button">
-                <Plus size={16} />
-                Add Your First Device
-              </button>
-            )}
+            <h3>No devices found</h3>
+            <p>Contact your administrator to add devices to your fleet</p>
           </div>
         ) : (
           <div className="device-grid">
-            {filteredDevices.map((device) => (
+            {devices.map((device) => (
               <TenantDeviceCard
                 key={device.id}
                 device={device}
-                onAction={handleDeviceAction}
                 onUpdateDisplayName={handleUpdateDisplayName}
               />
             ))}

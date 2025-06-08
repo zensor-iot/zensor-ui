@@ -3,21 +3,21 @@ import {
   Wifi, 
   Battery, 
   Circle,
-  Settings,
-  RotateCcw,
-  Play,
-  Pause,
   MoreVertical,
   Edit3,
   Check,
-  X
+  X,
+  Droplets,
+  Clock
 } from 'lucide-react'
 import { useState } from 'react'
 
-const TenantDeviceCard = ({ device, onAction, onUpdateDisplayName }) => {
+const TenantDeviceCard = ({ device, onUpdateDisplayName }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [editedDisplayName, setEditedDisplayName] = useState(device.display_name || device.name)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [irrigationMinutes, setIrrigationMinutes] = useState(5)
+  const [isIrrigating, setIsIrrigating] = useState(false)
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -68,6 +68,58 @@ const TenantDeviceCard = ({ device, onAction, onUpdateDisplayName }) => {
   const handleCancelEdit = () => {
     setEditedDisplayName(device.display_name || device.name)
     setIsEditing(false)
+  }
+
+  const handleIrrigation = async () => {
+    if (isIrrigating || device.status === 'offline') return
+    
+    setIsIrrigating(true)
+    try {
+      const taskPayload = {
+        commands: [
+          {
+            wait_for: "0s", // Immediate activation
+            priority: "HIGH",
+            index: 1,
+            value: 1 // Activation value
+          },
+          {
+            wait_for: `${irrigationMinutes}m`, // Wait for user-specified minutes
+            priority: "HIGH", 
+            index: 1,
+            value: 2 // Deactivation value
+          }
+        ]
+      }
+
+      const response = await fetch(`http://localhost:3000/v1/devices/${device.id}/tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(taskPayload)
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to start irrigation`)
+      }
+
+      const result = await response.json()
+      console.log('Irrigation task created:', result)
+      
+      // Show feedback to user
+      alert(`Irrigation started for ${irrigationMinutes} minutes!`)
+      
+      // Reset irrigation state after the duration + buffer
+      setTimeout(() => {
+        setIsIrrigating(false)
+      }, (irrigationMinutes * 60 + 30) * 1000) // Add 30 seconds buffer
+      
+    } catch (error) {
+      console.error('Failed to start irrigation:', error)
+      alert(`Failed to start irrigation: ${error.message}`)
+      setIsIrrigating(false)
+    }
   }
 
   return (
@@ -192,43 +244,67 @@ const TenantDeviceCard = ({ device, onAction, onUpdateDisplayName }) => {
         </div>
       </div>
 
-      {/* Device Actions */}
-      <div className="device-actions">
-        <button 
-          className="action-btn primary"
-          onClick={() => onAction(device.id, 'configure')}
-          disabled={device.status === 'offline'}
-        >
-          <Settings size={16} />
-          Configure
-        </button>
-        
-        <button 
-          className="action-btn secondary"
-          onClick={() => onAction(device.id, 'restart')}
-          disabled={device.status === 'offline'}
-        >
-          <RotateCcw size={16} />
-          Restart
-        </button>
-        
-        <button 
-          className="action-btn secondary"
-          onClick={() => onAction(device.id, device.status === 'online' ? 'pause' : 'resume')}
-        >
-          {device.status === 'online' ? (
-            <>
-              <Pause size={16} />
-              Pause
-            </>
-          ) : (
-            <>
-              <Play size={16} />
-              Resume
-            </>
+      {/* Irrigation Control */}
+      <div className="irrigation-control">
+        <div className="irrigation-header">
+          <div className="irrigation-title">
+            <Droplets size={18} />
+            <span>Irrigation Control</span>
+          </div>
+          {isIrrigating && (
+            <div className="irrigation-status">
+              <Circle size={8} fill="#10b981" color="#10b981" />
+              <span>Active</span>
+            </div>
           )}
-        </button>
+        </div>
+        
+        <div className="irrigation-settings">
+          <div className="duration-control">
+            <label htmlFor={`duration-${device.id}`} className="duration-label">
+              <Clock size={14} />
+              Duration (minutes)
+            </label>
+            <div className="duration-input-group">
+              <button 
+                className="duration-btn"
+                onClick={() => setIrrigationMinutes(Math.max(1, irrigationMinutes - 1))}
+                disabled={isIrrigating || device.status === 'offline'}
+              >
+                -
+              </button>
+              <input
+                id={`duration-${device.id}`}
+                type="number"
+                min="1"
+                max="60"
+                value={irrigationMinutes}
+                onChange={(e) => setIrrigationMinutes(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
+                className="duration-input"
+                disabled={isIrrigating || device.status === 'offline'}
+              />
+              <button 
+                className="duration-btn"
+                onClick={() => setIrrigationMinutes(Math.min(60, irrigationMinutes + 1))}
+                disabled={isIrrigating || device.status === 'offline'}
+              >
+                +
+              </button>
+            </div>
+          </div>
+          
+          <button 
+            className={`irrigation-btn ${isIrrigating ? 'active' : ''}`}
+            onClick={handleIrrigation}
+            disabled={isIrrigating || device.status === 'offline'}
+          >
+            <Droplets size={16} />
+            {isIrrigating ? `Irrigating (${irrigationMinutes}m)` : 'Start Irrigation'}
+          </button>
+        </div>
       </div>
+
+
     </div>
   )
 }
