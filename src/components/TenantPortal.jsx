@@ -11,6 +11,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import TenantDeviceCard from './TenantDeviceCard'
+import useWebSocket from '../hooks/useWebSocket'
 
 const TenantPortal = () => {
   const { tenantId } = useParams()
@@ -18,6 +19,25 @@ const TenantPortal = () => {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [deviceSensorData, setDeviceSensorData] = useState({}) // Store latest sensor data for each device
+
+  // WebSocket connection for real-time sensor data
+  const wsUrl = `ws://${window.location.hostname}:3000/ws/device-messages`
+  const { isConnected, lastMessage } = useWebSocket(wsUrl)
+
+  // Process incoming WebSocket messages to store latest sensor data
+  useEffect(() => {
+    if (lastMessage && lastMessage.type === 'device_message') {
+      setDeviceSensorData(prev => ({
+        ...prev,
+        [lastMessage.device_id]: {
+          data: lastMessage.data,
+          timestamp: lastMessage.timestamp,
+          receivedAt: new Date()
+        }
+      }))
+    }
+  }, [lastMessage])
 
   useEffect(() => {
     fetchTenantInfo()
@@ -136,6 +156,12 @@ const TenantPortal = () => {
             </div>
           </div>
           <div className="portal-status">
+            <div className="websocket-status">
+              <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+                <div className="status-dot"></div>
+                <span>{isConnected ? 'Live Data Connected' : 'Live Data Disconnected'}</span>
+              </div>
+            </div>
             <div className="last-updated">
               <Clock size={16} />
               <span>Last updated: {new Date().toLocaleTimeString()}</span>
@@ -211,6 +237,7 @@ const TenantPortal = () => {
               <TenantDeviceCard
                 key={device.id}
                 device={device}
+                sensorData={deviceSensorData[device.name]} // Pass latest sensor data
                 onUpdateDisplayName={handleUpdateDisplayName}
               />
             ))}

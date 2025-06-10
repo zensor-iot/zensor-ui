@@ -8,11 +8,14 @@ import {
   Check,
   X,
   Droplets,
-  Clock
+  Clock,
+  Thermometer,
+  Gauge,
+  BarChart3
 } from 'lucide-react'
 import { useState } from 'react'
 
-const TenantDeviceCard = ({ device, onUpdateDisplayName }) => {
+const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [editedDisplayName, setEditedDisplayName] = useState(device.display_name || device.name)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -49,6 +52,91 @@ const TenantDeviceCard = ({ device, onUpdateDisplayName }) => {
     
     const diffInDays = Math.floor(diffInHours / 24)
     return `${diffInDays}d ago`
+  }
+
+  const getSensorIcon = (sensorType) => {
+    const type = sensorType.toLowerCase()
+    if (type.includes('temp')) return <Thermometer className="sensor-icon" />
+    if (type.includes('humid') || type.includes('water')) return <Droplets className="sensor-icon" />
+    if (type.includes('flow') || type.includes('pressure')) return <Gauge className="sensor-icon" />
+    return <BarChart3 className="sensor-icon" />
+  }
+
+  const getSensorUnit = (sensorType) => {
+    const type = sensorType.toLowerCase()
+    if (type.includes('temp')) return '°C'
+    if (type.includes('humid')) return '%'
+    if (type.includes('water') && type.includes('flow')) return 'L/min'
+    if (type.includes('pressure')) return 'bar'
+    return ''
+  }
+
+  const formatTimestamp = (timestamp) => {
+    return new Date(timestamp).toLocaleString()
+  }
+
+  const renderSensorData = () => {
+    if (!sensorData || !sensorData.data) {
+      return (
+        <div className="sensor-data-section">
+          <div className="sensor-data-header">
+            <h4>Sensor Data</h4>
+            <span className="no-data">No recent data</span>
+          </div>
+        </div>
+      )
+    }
+
+    const entries = Object.entries(sensorData.data)
+    if (entries.length === 0) {
+      return (
+        <div className="sensor-data-section">
+          <div className="sensor-data-header">
+            <h4>Sensor Data</h4>
+            <span className="no-data">No sensor data</span>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="sensor-data-section">
+        <div className="sensor-data-header">
+          <h4>Latest Sensor Data</h4>
+          <span className="data-timestamp">{formatTimestamp(sensorData.timestamp)}</span>
+        </div>
+        <div className="sensor-data-container">
+          {entries.map(([sensorType, readings]) => {
+            if (!Array.isArray(readings) || readings.length === 0) return null
+            
+            const unit = getSensorUnit(sensorType)
+            
+            return (
+              <div key={sensorType} className="sensor-type">
+                <div className="sensor-header">
+                  {getSensorIcon(sensorType)}
+                  <span className="sensor-name">{sensorType}</span>
+                  <span className="sensor-count">({readings.length})</span>
+                </div>
+                <div className="sensor-readings">
+                  {readings.map((reading, idx) => (
+                    <div key={idx} className="sensor-reading">
+                      <span className="reading-index">#{reading.Index || reading.index}</span>
+                      <span className="reading-value">
+                        {typeof (reading.Value || reading.value) === 'number' ? 
+                          (reading.Value || reading.value).toFixed(2) : 
+                          (reading.Value || reading.value)}
+                        {unit && <span className="reading-unit">{unit}</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          }).filter(Boolean)}
+        </div>
+      </div>
+    )
   }
 
   const handleSaveDisplayName = async () => {
@@ -232,7 +320,8 @@ const TenantDeviceCard = ({ device, onUpdateDisplayName }) => {
         </div>
       </div>
 
-
+      {/* Sensor Data Section */}
+      {renderSensorData()}
 
       {/* Irrigation Control */}
       <div className="irrigation-control">
@@ -293,8 +382,6 @@ const TenantDeviceCard = ({ device, onUpdateDisplayName }) => {
           </button>
         </div>
       </div>
-
-
     </div>
   )
 }

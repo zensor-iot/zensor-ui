@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom'
-import { Activity, Building, Cpu } from 'lucide-react'
+import { Activity, Building, Cpu, Radio } from 'lucide-react'
 import TenantList from './components/TenantList'
 import TenantDevices from './components/TenantDevices'
 import TenantPortal from './components/TenantPortal'
+import DeviceMessagesLive from './components/DeviceMessagesLive'
 import './App.css'
 
 function AppContent() {
@@ -23,6 +24,10 @@ function AppContent() {
                 <Building size={20} />
                 Tenants
               </Link>
+              <Link to="/live-messages" className="nav-link">
+                <Radio size={20} />
+                Live Messages
+              </Link>
             </nav>
           </div>
         </header>
@@ -33,6 +38,7 @@ function AppContent() {
           <Route path="/" element={<TenantList />} />
           <Route path="/tenants/:tenantId/devices" element={<TenantDevices />} />
           <Route path="/portal/:tenantId" element={<TenantPortal />} />
+          <Route path="/live-messages" element={<DeviceMessagesLive />} />
         </Routes>
       </main>
     </div>
