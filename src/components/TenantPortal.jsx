@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import TenantDeviceCard from './TenantDeviceCard'
 import useWebSocket from '../hooks/useWebSocket'
+import { getApiUrl, getWebSocketUrl } from '../config/api'
 
 const TenantPortal = () => {
   const { tenantId } = useParams()
@@ -22,7 +23,7 @@ const TenantPortal = () => {
   const [deviceSensorData, setDeviceSensorData] = useState({}) // Store latest sensor data for each device
 
   // WebSocket connection for real-time sensor data
-  const wsUrl = `ws://${window.location.hostname}:3000/ws/device-messages`
+  const wsUrl = getWebSocketUrl('/ws/device-messages')
   const { isConnected, lastMessage } = useWebSocket(wsUrl)
 
   // Process incoming WebSocket messages to store latest sensor data
@@ -49,7 +50,7 @@ const TenantPortal = () => {
 
   const fetchTenantInfo = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/v1/tenants/${tenantId}`)
+      const response = await fetch(getApiUrl(`/v1/tenants/${tenantId}`))
       if (!response.ok) {
         throw new Error(`Failed to fetch tenant information`)
       }
@@ -63,7 +64,7 @@ const TenantPortal = () => {
   const fetchTenantDevices = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:3000/v1/tenants/${tenantId}/devices`)
+      const response = await fetch(getApiUrl(`/v1/tenants/${tenantId}/devices`))
       if (!response.ok) {
         throw new Error(`Failed to fetch devices`)
       }
@@ -89,7 +90,7 @@ const TenantPortal = () => {
 
   const handleUpdateDisplayName = async (deviceId, displayName) => {
     try {
-      const response = await fetch(`http://localhost:3000/v1/devices/${deviceId}`, {
+      const response = await fetch(getApiUrl(`/v1/devices/${deviceId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

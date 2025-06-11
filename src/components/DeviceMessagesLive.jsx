@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import useWebSocket from '../hooks/useWebSocket';
-import { Activity, Wifi, WifiOff, RotateCcw, Eye, EyeOff, BarChart3, Thermometer, Droplets, Gauge } from 'lucide-react';
+import { Activity, Wifi, WifiOff, RotateCcw, Eye, EyeOff, BarChart3, Thermometer, Droplets, Gauge, Clock, AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { getWebSocketUrl } from '../config/api';
 
 const DeviceMessagesLive = () => {
   const [messages, setMessages] = useState([]);
@@ -9,13 +10,8 @@ const DeviceMessagesLive = () => {
   const [showRawData, setShowRawData] = useState(false);
   const [expandedMessages, setExpandedMessages] = useState(new Set());
   
-  // Get the websocket URL - use useMemo to prevent it from changing on every render
-  const wsUrl = useMemo(() => 
-    `ws://${window.location.hostname}:3000/ws/device-messages`,
-    []
-  );
-  
-  const { isConnected, lastMessage, connectionError, connectionStatus, retry } = useWebSocket(wsUrl);
+  const wsUrl = getWebSocketUrl('/ws/device-messages');
+  const { isConnected, lastMessage, error } = useWebSocket(wsUrl);
 
   // Add new messages to the list
   useEffect(() => {
@@ -34,7 +30,7 @@ const DeviceMessagesLive = () => {
   }, [lastMessage, maxMessages]);
 
   // Get unique device IDs for filtering
-  const deviceIds = [...new Set(messages.map(msg => msg.device_id))];
+  const deviceIds = useMemo(() => [...new Set(messages.map(msg => msg.device_id))], [messages]);
   
   // Filter messages by selected device
   const filteredMessages = selectedDevice === 'all' 
@@ -153,6 +149,32 @@ const DeviceMessagesLive = () => {
     );
   };
 
+  const getConnectionStatus = () => {
+    if (error) {
+      return {
+        icon: <XCircle className="status-icon error" />,
+        text: 'Connection Error',
+        className: 'error'
+      };
+    }
+    
+    if (isConnected) {
+      return {
+        icon: <CheckCircle className="status-icon connected" />,
+        text: 'Connected',
+        className: 'connected'
+      };
+    }
+    
+    return {
+      icon: <RefreshCw className="status-icon reconnecting" />,
+      text: 'Connecting...',
+      className: 'reconnecting'
+    };
+  };
+
+  const status = getConnectionStatus();
+
   return (
     <div className="device-messages-live">
       <div className="header">
@@ -162,16 +184,15 @@ const DeviceMessagesLive = () => {
         </div>
         
         <div className="status-section">
-          <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
-            {isConnected ? <Wifi className="status-icon" /> : <WifiOff className="status-icon" />}
-            <span>{connectionStatus}</span>
+          <div className={`connection-status ${status.className}`}>
+            {status.icon}
+            <span>{status.text}</span>
           </div>
           
-          {connectionError && (
-            <button onClick={retry} className="retry-button">
-              <RotateCcw className="icon" />
-              Retry
-            </button>
+          {error && (
+            <div className="error-display">
+              <span className="error-text">{error}</span>
+            </div>
           )}
         </div>
       </div>
@@ -247,9 +268,9 @@ const DeviceMessagesLive = () => {
         </div>
       </div>
 
-      {connectionError && (
+      {error && (
         <div className="error-banner">
-          <strong>Connection Error:</strong> {connectionError}
+          <strong>Connection Error:</strong> {error}
         </div>
       )}
 

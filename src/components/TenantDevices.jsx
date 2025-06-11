@@ -6,9 +6,14 @@ import {
   Building,
   Loader2,
   AlertCircle,
-  Plus
+  Plus,
+  Activity,
+  Wifi,
+  Battery,
+  Circle
 } from 'lucide-react'
 import DeviceCard from './DeviceCard'
+import { getApiUrl } from '../config/api'
 
 const TenantDevices = () => {
   const { tenantId } = useParams()
@@ -24,7 +29,7 @@ const TenantDevices = () => {
 
   const fetchTenantInfo = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/v1/tenants/${tenantId}`)
+      const response = await fetch(getApiUrl(`/v1/tenants/${tenantId}`))
       if (!response.ok) {
         throw new Error(`Failed to fetch tenant: ${response.statusText}`)
       }
@@ -38,18 +43,28 @@ const TenantDevices = () => {
   const fetchTenantDevices = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`http://localhost:3000/v1/tenants/${tenantId}/devices`)
+      const response = await fetch(getApiUrl(`/v1/tenants/${tenantId}/devices`))
       if (!response.ok) {
         throw new Error(`Failed to fetch devices: ${response.statusText}`)
       }
       const data = await response.json()
-      setDevices(data.data || [])
+      // Simulate some device metrics for demo
+      const devicesWithMetrics = (data.data || []).map(device => ({
+        ...device,
+        batteryLevel: Math.floor(Math.random() * 100),
+        signalStrength: Math.floor(Math.random() * 100),
+        status: Math.random() > 0.3 ? 'online' : 'offline',
+        lastSeen: new Date(Date.now() - Math.random() * 86400000) // Random within last 24h
+      }))
+      setDevices(devicesWithMetrics)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
   }
+
+
 
   const handleViewDetails = (device) => {
     console.log('View device details:', device)
@@ -111,6 +126,39 @@ const TenantDevices = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Device Stats */}
+      <div className="device-stats">
+        <div className="stat-card">
+          <div className="stat-icon">
+            <Cpu className="icon" />
+          </div>
+          <div className="stat-content">
+            <h3>Total Devices</h3>
+            <p className="stat-number">{devices.length}</p>
+          </div>
+        </div>
+        
+        <div className="stat-card online">
+          <div className="stat-icon">
+            <Activity className="icon" />
+          </div>
+          <div className="stat-content">
+            <h3>Online</h3>
+            <p className="stat-number">{devices.filter(d => d.status === 'online').length}</p>
+          </div>
+        </div>
+        
+        <div className="stat-card offline">
+          <div className="stat-icon">
+            <Circle className="icon" />
+          </div>
+          <div className="stat-content">
+            <h3>Offline</h3>
+            <p className="stat-number">{devices.filter(d => d.status === 'offline').length}</p>
+          </div>
+        </div>
       </div>
 
       {loading ? (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Building, Users, ChevronRight, Loader2 } from 'lucide-react'
+import { Building, Loader2, AlertCircle, ChevronRight } from 'lucide-react'
+import { getApiUrl } from '../config/api'
 
 const TenantList = () => {
   const [tenants, setTenants] = useState([])
@@ -14,9 +15,9 @@ const TenantList = () => {
   const fetchTenants = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://localhost:3000/v1/tenants')
+      const response = await fetch(getApiUrl('/v1/tenants'))
       if (!response.ok) {
-        throw new Error(`Failed to fetch tenants: ${response.statusText}`)
+        throw new Error(`Failed to fetch tenants: ${response.status}`)
       }
       const data = await response.json()
       setTenants(data.tenants || [])
@@ -27,73 +28,62 @@ const TenantList = () => {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <Loader2 className="loading-spinner" />
-        <p>Loading tenants...</p>
-      </div>
-    )
-  }
-
   if (error) {
     return (
-      <div className="error-container">
-        <p className="error-message">Error: {error}</p>
-        <button onClick={fetchTenants} className="retry-button">
-          Retry
-        </button>
+      <div className="page-container">
+        <div className="error-container">
+          <AlertCircle className="error-icon" />
+          <h2>Unable to load tenants</h2>
+          <p className="error-message">{error}</p>
+          <button onClick={fetchTenants} className="retry-button">
+            Try Again
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="tenant-list">
+    <div className="page-container">
       <div className="page-header">
-        <h2>
-          <Building className="page-icon" />
-          Tenant Management
-        </h2>
-        <p className="page-description">
-          Manage your tenants and their IoT device fleets
-        </p>
+        <Building className="page-icon" />
+        <div>
+          <h2>Tenant Organizations</h2>
+          <p className="page-description">
+            Select a tenant to manage their devices and infrastructure
+          </p>
+        </div>
       </div>
 
-      {tenants.length === 0 ? (
+      {loading ? (
+        <div className="loading-container">
+          <Loader2 className="loading-spinner" />
+          <p>Loading tenants...</p>
+        </div>
+      ) : tenants.length === 0 ? (
         <div className="empty-state">
-          <Users size={64} className="empty-icon" />
+          <Building size={64} className="empty-icon" />
           <h3>No tenants found</h3>
-          <p>Create your first tenant to get started</p>
+          <p>Contact your administrator to set up tenant organizations</p>
         </div>
       ) : (
         <div className="tenant-grid">
           {tenants.map((tenant) => (
             <Link
               key={tenant.id}
-              to={`/tenants/${tenant.id}/devices`}
+              to={`/portal/${tenant.id}`}
               className="tenant-card"
             >
               <div className="tenant-card-header">
-                <div className="tenant-info">
-                  <h3 className="tenant-name">{tenant.name}</h3>
-                  <p className="tenant-email">{tenant.email}</p>
-                </div>
-                <div className="tenant-status">
-                  <span className={`status-badge ${tenant.is_active ? 'active' : 'inactive'}`}>
-                    {tenant.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
+                <h3 className="tenant-name">{tenant.name}</h3>
+                <p className="tenant-email">{tenant.email}</p>
               </div>
-              
               {tenant.description && (
                 <p className="tenant-description">{tenant.description}</p>
               )}
-              
               <div className="tenant-card-footer">
                 <div className="tenant-meta">
-                  <span className="meta-item">
-                    Created: {new Date(tenant.created_at).toLocaleDateString()}
-                  </span>
+                  <span className="status-badge active">Active</span>
                 </div>
                 <ChevronRight className="nav-arrow" />
               </div>

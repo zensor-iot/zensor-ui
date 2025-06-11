@@ -14,6 +14,7 @@ import {
   BarChart3
 } from 'lucide-react'
 import { useState } from 'react'
+import { getApiUrl } from '../config/api'
 
 const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
   const [isEditing, setIsEditing] = useState(false)
@@ -182,7 +183,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
         ]
       }
 
-      const response = await fetch(`http://localhost:3000/v1/devices/${device.id}/tasks`, {
+      const response = await fetch(getApiUrl(`/v1/devices/${device.id}/tasks`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
