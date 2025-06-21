@@ -1,7 +1,7 @@
-import { 
-  Cpu, 
-  Wifi, 
-  Battery, 
+import {
+  Cpu,
+  Wifi,
+  Battery,
   Circle,
   MoreVertical,
   Edit3,
@@ -11,9 +11,10 @@ import {
   Clock,
   Thermometer,
   Gauge,
-  BarChart3
+  BarChart3,
+  Power
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getApiUrl } from '../config/api'
 
 const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
@@ -22,6 +23,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
   const [isUpdating, setIsUpdating] = useState(false)
   const [irrigationMinutes, setIrrigationMinutes] = useState(5)
   const [isIrrigating, setIsIrrigating] = useState(false)
+  const [hasReceivedFirstMessage, setHasReceivedFirstMessage] = useState(false)
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -41,16 +43,16 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
 
   const formatLastSeen = (date) => {
     if (!date) return 'Never'
-    
+
     const now = new Date()
     const diffInMinutes = Math.floor((now - date) / (1000 * 60))
-    
+
     if (diffInMinutes < 1) return 'Just now'
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-    
+
     const diffInHours = Math.floor(diffInMinutes / 60)
     if (diffInHours < 24) return `${diffInHours}h ago`
-    
+
     const diffInDays = Math.floor(diffInHours / 24)
     return `${diffInDays}d ago`
   }
@@ -60,6 +62,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
     if (type.includes('temp')) return <Thermometer className="sensor-icon" />
     if (type.includes('humid') || type.includes('water')) return <Droplets className="sensor-icon" />
     if (type.includes('flow') || type.includes('pressure')) return <Gauge className="sensor-icon" />
+    if (type.includes('relay')) return <Power className="sensor-icon" />
     return <BarChart3 className="sensor-icon" />
   }
 
@@ -74,6 +77,23 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
 
   const formatTimestamp = (timestamp) => {
     return new Date(timestamp).toLocaleString()
+  }
+
+  const isRelayActive = () => {
+    if (!sensorData || !sensorData.data) return false
+
+    // Check if any relay sensor has value 1 (On)
+    for (const [sensorType, readings] of Object.entries(sensorData.data)) {
+      if (sensorType.toLowerCase().includes('relay') && Array.isArray(readings)) {
+        for (const reading of readings) {
+          const value = reading.Value || reading.value
+          if (value === 1) return true
+        }
+      }
+    }
+
+    // If we have sensor data but no relay data, or relay is off (value = 0), return false
+    return false
   }
 
   const renderSensorData = () => {
@@ -109,9 +129,10 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
         <div className="sensor-data-container">
           {entries.map(([sensorType, readings]) => {
             if (!Array.isArray(readings) || readings.length === 0) return null
-            
+
             const unit = getSensorUnit(sensorType)
-            
+            const isRelay = sensorType.toLowerCase().includes('relay')
+
             return (
               <div key={sensorType} className="sensor-type">
                 <div className="sensor-header">
@@ -120,17 +141,22 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
                   <span className="sensor-count">({readings.length})</span>
                 </div>
                 <div className="sensor-readings">
-                  {readings.map((reading, idx) => (
-                    <div key={idx} className="sensor-reading">
-                      <span className="reading-index">#{reading.Index || reading.index}</span>
-                      <span className="reading-value">
-                        {typeof (reading.Value || reading.value) === 'number' ? 
-                          (reading.Value || reading.value).toFixed(2) : 
-                          (reading.Value || reading.value)}
-                        {unit && <span className="reading-unit">{unit}</span>}
-                      </span>
-                    </div>
-                  ))}
+                  {readings.map((reading, idx) => {
+                    const value = reading.Value || reading.value
+                    const displayValue = isRelay
+                      ? (value === 1 ? 'On' : 'Off')
+                      : (typeof value === 'number' ? value.toFixed(2) : value)
+
+                    return (
+                      <div key={idx} className="sensor-reading">
+                        <span className="reading-index">#{reading.Index || reading.index}</span>
+                        <span className={`reading-value ${isRelay ? (value === 1 ? 'relay-on' : 'relay-off') : ''}`}>
+                          {displayValue}
+                          {unit && !isRelay && <span className="reading-unit">{unit}</span>}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )
@@ -142,7 +168,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
 
   const handleSaveDisplayName = async () => {
     if (editedDisplayName.trim() === '') return
-    
+
     setIsUpdating(true)
     try {
       await onUpdateDisplayName(device.id, editedDisplayName.trim())
@@ -163,7 +189,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
 
   const handleIrrigation = async () => {
     if (isIrrigating || device.status === 'offline') return
-    
+
     setIsIrrigating(true)
     try {
       const taskPayload = {
@@ -176,7 +202,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
           },
           {
             wait_for: `${irrigationMinutes}m`, // Wait for user-specified minutes
-            priority: "HIGH", 
+            priority: "HIGH",
             index: 1,
             value: 2 // Deactivation value
           }
@@ -197,21 +223,51 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
 
       const result = await response.json()
       console.log('Irrigation task created:', result)
-      
+
       // Show feedback to user
       alert(`Irrigation started for ${irrigationMinutes} minutes!`)
-      
-      // Reset irrigation state after the duration + buffer
-      setTimeout(() => {
-        setIsIrrigating(false)
-      }, (irrigationMinutes * 60 + 30) * 1000) // Add 30 seconds buffer
-      
+
+      // Note: We no longer use setTimeout here
+      // The irrigation state will be reset when we receive a WebSocket message
+      // indicating the relay has been turned off (value = 0)
+
     } catch (error) {
       console.error('Failed to start irrigation:', error)
       alert(`Failed to start irrigation: ${error.message}`)
       setIsIrrigating(false)
     }
   }
+
+  // Monitor sensor data changes to reset irrigation state when relay turns off
+  useEffect(() => {
+    // Set flag when we receive first message
+    if (sensorData && sensorData.data && !hasReceivedFirstMessage) {
+      setHasReceivedFirstMessage(true)
+    }
+
+    if (isIrrigating && sensorData && sensorData.data) {
+      // Check if any relay sensor has been turned off (value = 0)
+      let relayTurnedOff = false
+      for (const [sensorType, readings] of Object.entries(sensorData.data)) {
+        if (sensorType.toLowerCase().includes('relay') && Array.isArray(readings)) {
+          for (const reading of readings) {
+            const value = reading.Value || reading.value
+            if (value === 0) {
+              relayTurnedOff = true
+              break
+            }
+          }
+          if (relayTurnedOff) break
+        }
+      }
+
+      // If relay has been turned off, reset irrigation state
+      if (relayTurnedOff) {
+        setIsIrrigating(false)
+        console.log('Irrigation completed - relay turned off')
+      }
+    }
+  }, [sensorData, isIrrigating, hasReceivedFirstMessage])
 
   return (
     <div className="tenant-device-card">
@@ -220,7 +276,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
         <div className="device-identity">
           <div className="device-icon-wrapper">
             <Cpu className="device-icon" />
-            <div 
+            <div
               className="status-indicator"
               style={{ backgroundColor: getStatusColor(device.status) }}
             />
@@ -242,14 +298,14 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
                   autoFocus
                 />
                 <div className="edit-actions">
-                  <button 
+                  <button
                     onClick={handleSaveDisplayName}
                     disabled={isUpdating || editedDisplayName.trim() === ''}
                     className="edit-save-btn"
                   >
                     <Check size={14} />
                   </button>
-                  <button 
+                  <button
                     onClick={handleCancelEdit}
                     disabled={isUpdating}
                     className="edit-cancel-btn"
@@ -261,7 +317,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
             ) : (
               <h3 className="device-name">
                 {device.display_name || device.name}
-                <button 
+                <button
                   onClick={() => setIsEditing(true)}
                   className="edit-name-btn"
                   title="Edit display name"
@@ -271,8 +327,8 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
               </h3>
             )}
             <p className="device-status">
-              <Circle 
-                size={8} 
+              <Circle
+                size={8}
                 fill={getStatusColor(device.status)}
                 color={getStatusColor(device.status)}
               />
@@ -311,7 +367,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
           <div className="metric-content">
             <span className="metric-label">Battery</span>
             <div className="battery-indicator">
-              <div 
+              <div
                 className="battery-level"
                 style={{ width: `${device.batteryLevel}%` }}
               />
@@ -338,7 +394,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
             </div>
           )}
         </div>
-        
+
         <div className="irrigation-settings">
           <div className="duration-control">
             <label htmlFor={`duration-${device.id}`} className="duration-label">
@@ -346,10 +402,10 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
               Duration (minutes)
             </label>
             <div className="duration-input-group">
-              <button 
+              <button
                 className="duration-btn"
                 onClick={() => setIrrigationMinutes(Math.max(1, irrigationMinutes - 1))}
-                disabled={isIrrigating || device.status === 'offline'}
+                disabled={isIrrigating || device.status === 'offline' || isRelayActive() || !hasReceivedFirstMessage}
               >
                 -
               </button>
@@ -361,22 +417,22 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
                 value={irrigationMinutes}
                 onChange={(e) => setIrrigationMinutes(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
                 className="duration-input"
-                disabled={isIrrigating || device.status === 'offline'}
+                disabled={isIrrigating || device.status === 'offline' || isRelayActive() || !hasReceivedFirstMessage}
               />
-              <button 
+              <button
                 className="duration-btn"
                 onClick={() => setIrrigationMinutes(Math.min(60, irrigationMinutes + 1))}
-                disabled={isIrrigating || device.status === 'offline'}
+                disabled={isIrrigating || device.status === 'offline' || isRelayActive() || !hasReceivedFirstMessage}
               >
                 +
               </button>
             </div>
           </div>
-          
-          <button 
+
+          <button
             className={`irrigation-btn ${isIrrigating ? 'active' : ''}`}
             onClick={handleIrrigation}
-            disabled={isIrrigating || device.status === 'offline'}
+            disabled={isIrrigating || device.status === 'offline' || isRelayActive() || !hasReceivedFirstMessage}
           >
             <Droplets size={16} />
             {isIrrigating ? `Irrigating (${irrigationMinutes}m)` : 'Start Irrigation'}

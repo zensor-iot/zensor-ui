@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import useWebSocket from '../hooks/useWebSocket';
-import { Activity, Wifi, WifiOff, RotateCcw, Eye, EyeOff, BarChart3, Thermometer, Droplets, Gauge, Clock, AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Activity, Wifi, WifiOff, RotateCcw, Eye, EyeOff, BarChart3, Thermometer, Droplets, Gauge, Clock, AlertCircle, CheckCircle, XCircle, RefreshCw, Power } from 'lucide-react';
 import { getWebSocketUrl } from '../config/api';
 
 const DeviceMessagesLive = () => {
@@ -9,7 +9,7 @@ const DeviceMessagesLive = () => {
   const [maxMessages, setMaxMessages] = useState(50);
   const [showRawData, setShowRawData] = useState(false);
   const [expandedMessages, setExpandedMessages] = useState(new Set());
-  
+
   const wsUrl = getWebSocketUrl('/ws/device-messages');
   const { isConnected, lastMessage, error } = useWebSocket(wsUrl);
 
@@ -22,7 +22,7 @@ const DeviceMessagesLive = () => {
           id: `${lastMessage.device_id}-${lastMessage.timestamp}-${Date.now()}`,
           receivedAt: new Date()
         }, ...prev];
-        
+
         // Keep only the most recent messages
         return newMessages.slice(0, maxMessages);
       });
@@ -31,10 +31,10 @@ const DeviceMessagesLive = () => {
 
   // Get unique device IDs for filtering
   const deviceIds = useMemo(() => [...new Set(messages.map(msg => msg.device_id))], [messages]);
-  
+
   // Filter messages by selected device
-  const filteredMessages = selectedDevice === 'all' 
-    ? messages 
+  const filteredMessages = selectedDevice === 'all'
+    ? messages
     : messages.filter(msg => msg.device_id === selectedDevice);
 
   // Calculate message statistics
@@ -45,13 +45,13 @@ const DeviceMessagesLive = () => {
       lastActivity: messages.length > 0 ? messages[0].receivedAt : null,
       sensorTypes: new Set()
     };
-    
+
     messages.forEach(msg => {
       if (msg.data && typeof msg.data === 'object') {
         Object.keys(msg.data).forEach(key => stats.sensorTypes.add(key));
       }
     });
-    
+
     return stats;
   }, [messages, deviceIds]);
 
@@ -81,6 +81,7 @@ const DeviceMessagesLive = () => {
     if (type.includes('temp')) return <Thermometer className="sensor-icon" />;
     if (type.includes('humid') || type.includes('water')) return <Droplets className="sensor-icon" />;
     if (type.includes('flow') || type.includes('pressure')) return <Gauge className="sensor-icon" />;
+    if (type.includes('relay')) return <Power className="sensor-icon" />;
     return <BarChart3 className="sensor-icon" />;
   };
 
@@ -95,19 +96,20 @@ const DeviceMessagesLive = () => {
 
   const formatSensorData = (data, messageId) => {
     if (!data) return 'No data';
-    
+
     const entries = Object.entries(data);
     if (entries.length === 0) return 'No sensor data';
-    
+
     const isExpanded = expandedMessages.has(messageId);
-    
+
     return (
       <div className="sensor-data-container">
         {entries.map(([sensorType, readings]) => {
           if (!Array.isArray(readings) || readings.length === 0) return null;
-          
+
           const unit = getSensorUnit(sensorType);
-          
+          const isRelay = sensorType.toLowerCase().includes('relay');
+
           return (
             <div key={sensorType} className="sensor-type">
               <div className="sensor-header">
@@ -116,17 +118,24 @@ const DeviceMessagesLive = () => {
                 <span className="sensor-count">({readings.length} readings)</span>
               </div>
               <div className="sensor-readings">
-                {readings.slice(0, isExpanded ? readings.length : 3).map((reading, idx) => (
-                  <div key={idx} className="sensor-reading">
-                    <span className="reading-index">#{reading.Index || reading.index}</span>
-                    <span className="reading-value">
-                      {typeof (reading.Value || reading.value) === 'number' ? (reading.Value || reading.value).toFixed(2) : (reading.Value || reading.value)}
-                      {unit && <span className="reading-unit">{unit}</span>}
-                    </span>
-                  </div>
-                ))}
+                {readings.slice(0, isExpanded ? readings.length : 3).map((reading, idx) => {
+                  const value = reading.Value || reading.value;
+                  const displayValue = isRelay
+                    ? (value === 1 ? 'On' : 'Off')
+                    : (typeof value === 'number' ? value.toFixed(2) : value);
+
+                  return (
+                    <div key={idx} className="sensor-reading">
+                      <span className="reading-index">#{reading.Index || reading.index}</span>
+                      <span className={`reading-value ${isRelay ? (value === 1 ? 'relay-on' : 'relay-off') : ''}`}>
+                        {displayValue}
+                        {unit && !isRelay && <span className="reading-unit">{unit}</span>}
+                      </span>
+                    </div>
+                  );
+                })}
                 {readings.length > 3 && (
-                  <button 
+                  <button
                     className="expand-button"
                     onClick={() => toggleMessageExpansion(messageId)}
                   >
@@ -157,7 +166,7 @@ const DeviceMessagesLive = () => {
         className: 'error'
       };
     }
-    
+
     if (isConnected) {
       return {
         icon: <CheckCircle className="status-icon connected" />,
@@ -165,7 +174,7 @@ const DeviceMessagesLive = () => {
         className: 'connected'
       };
     }
-    
+
     return {
       icon: <RefreshCw className="status-icon reconnecting" />,
       text: 'Connecting...',
@@ -182,13 +191,13 @@ const DeviceMessagesLive = () => {
           <Activity className="icon" />
           <h2>Live Device Messages</h2>
         </div>
-        
+
         <div className="status-section">
           <div className={`connection-status ${status.className}`}>
             {status.icon}
             <span>{status.text}</span>
           </div>
-          
+
           {error && (
             <div className="error-display">
               <span className="error-text">{error}</span>
@@ -222,9 +231,9 @@ const DeviceMessagesLive = () => {
       <div className="controls">
         <div className="filter-section">
           <label htmlFor="device-filter">Filter by device:</label>
-          <select 
+          <select
             id="device-filter"
-            value={selectedDevice} 
+            value={selectedDevice}
             onChange={(e) => setSelectedDevice(e.target.value)}
           >
             <option value="all">All devices ({messages.length} messages)</option>
@@ -240,23 +249,23 @@ const DeviceMessagesLive = () => {
         </div>
 
         <div className="actions">
-          <button 
+          <button
             onClick={() => setShowRawData(!showRawData)}
             className={`toggle-button ${showRawData ? 'active' : ''}`}
           >
             {showRawData ? <EyeOff className="icon" /> : <Eye className="icon" />}
             {showRawData ? 'Hide' : 'Show'} Raw Data
           </button>
-          
+
           <button onClick={clearMessages} className="clear-button">
             Clear Messages
           </button>
-          
+
           <div className="max-messages">
             <label htmlFor="max-messages">Max messages:</label>
-            <select 
+            <select
               id="max-messages"
-              value={maxMessages} 
+              value={maxMessages}
               onChange={(e) => setMaxMessages(parseInt(e.target.value))}
             >
               <option value={25}>25</option>
@@ -292,7 +301,7 @@ const DeviceMessagesLive = () => {
                     Received: {formatTimestamp(message.receivedAt)}
                   </div>
                 </div>
-                
+
                 <div className="message-content">
                   {showRawData ? (
                     formatRawData(message)
@@ -663,6 +672,16 @@ const DeviceMessagesLive = () => {
           font-weight: 600;
           color: #2c3e50;
           text-align: right;
+        }
+
+        .reading-value.relay-on {
+          color: #28a745;
+          font-weight: 700;
+        }
+
+        .reading-value.relay-off {
+          color: #dc3545;
+          font-weight: 700;
         }
 
         .reading-unit {
