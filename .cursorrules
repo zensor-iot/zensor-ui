@@ -51,6 +51,33 @@ Zensor Portal UI is a React-based IoT device management interface for the Zensor
 - Wait for first WebSocket message before enabling controls
 - Monitor relay state changes for irrigation completion
 
+## Scheduled Tasks Patterns
+
+### API Integration
+- Use `/v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks` endpoints
+- Implement full CRUD operations (GET, POST, PUT, DELETE)
+- Handle pagination for task listing
+- Use proper error handling for all operations
+
+### Task Management
+- Support cron expressions for scheduling (6 fields: second minute hour day month dayOfWeek)
+- Convert duration from minutes (UI) to seconds (API)
+- Implement active/inactive toggle for task status
+- Provide human-readable display of cron expressions
+
+### UI/UX Patterns
+- Use form-based creation/editing with validation
+- Provide preset examples for common schedules (Daily 6 AM, 12 PM, 6 PM)
+- Show task status with visual indicators (active/inactive)
+- Implement confirmation dialogs for destructive actions
+- Use responsive design for mobile compatibility
+
+### Command Structure
+- Use irrigation commands with duration payload in seconds
+- Structure: `{ command: 'irrigation', payload: { duration: seconds } }`
+- Support multiple commands per scheduled task
+- Handle command validation and error states
+
 ## UI/UX Patterns
 
 ### Navigation
@@ -106,6 +133,7 @@ Zensor Portal UI is a React-based IoT device management interface for the Zensor
 - `/v1/tenants/{id}/devices` - Device listing
 - `/v1/devices/{id}` - Device operations
 - `/v1/devices/{id}/tasks` - Task management
+- `/v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks` - Scheduled task management
 - `/ws/device-messages` - Real-time data
 
 ### Configuration
@@ -194,6 +222,21 @@ useEffect(() => {
 }, [lastMessage]);
 ```
 
+### Scheduled Tasks API
+```jsx
+// Create scheduled task
+const taskData = {
+  commands: [{
+    command: 'irrigation',
+    payload: { duration: 300 } // 5 minutes in seconds
+  }],
+  schedule: '0 0 6 * * *', // Daily 6 AM
+  is_active: true
+};
+
+await scheduledTasksApi.createScheduledTask(tenantId, deviceId, taskData);
+```
+
 ### Error Handling
 ```jsx
 try {
@@ -214,6 +257,13 @@ try {
 - Relay value 0 = "Off" (red)
 - Disable irrigation when relay is active
 - Wait for WebSocket confirmation before enabling controls
+
+### Scheduled Irrigation Features
+- Support cron expressions for flexible scheduling
+- Provide preset examples for common schedules
+- Convert duration from minutes to seconds for API
+- Implement active/inactive toggle for task management
+- Show human-readable schedule descriptions
 
 ### Full Width Layout
 - Use 100% width for all components
@@ -240,6 +290,8 @@ try {
 - Advanced filtering and search
 - Bulk operations
 - Export functionality
+- Weather-based scheduling
+- Schedule conflict detection
 
 ### Performance Optimization
 - Implement caching strategies

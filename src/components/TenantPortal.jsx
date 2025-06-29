@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { 
-  Cpu, 
-  Activity, 
+import {
+  Cpu,
+  Activity,
   Wifi,
   Clock,
   CheckCircle,
   XCircle,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react'
 import TenantDeviceCard from './TenantDeviceCard'
 import useWebSocket from '../hooks/useWebSocket'
@@ -21,6 +22,7 @@ const TenantPortal = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [deviceSensorData, setDeviceSensorData] = useState({}) // Store latest sensor data for each device
+  const [lastUpdated, setLastUpdated] = useState(new Date())
 
   // WebSocket connection for real-time sensor data
   const wsUrl = getWebSocketUrl('/ws/device-messages')
@@ -43,10 +45,64 @@ const TenantPortal = () => {
   useEffect(() => {
     fetchTenantInfo()
     fetchTenantDevices()
-    // Set up periodic refresh for device status
-    const interval = setInterval(fetchTenantDevices, 30000) // Refresh every 30 seconds
+  }, [tenantId])
+
+  // Partial refresh for device status only (no loading state)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(getApiUrl(`/v1/tenants/${tenantId}/devices`))
+        if (response.ok) {
+          const data = await response.json()
+          const updatedDevices = (data.data || []).map(device => ({
+            ...device,
+            status: device.status,
+            lastSeen: device.last_message_received_at ? new Date(device.last_message_received_at) : null,
+            batteryLevel: 100, // Always show 100% battery
+            signalStrength: Math.floor(Math.random() * 100)
+          }))
+
+          // Only update if devices have actually changed
+          setDevices(prevDevices => {
+            const hasChanges = JSON.stringify(prevDevices.map(d => ({ id: d.id, status: d.status, lastSeen: d.lastSeen }))) !==
+              JSON.stringify(updatedDevices.map(d => ({ id: d.id, status: d.status, lastSeen: d.lastSeen })))
+
+            if (hasChanges) {
+              setLastUpdated(new Date())
+              return updatedDevices
+            }
+            return prevDevices
+          })
+        }
+      } catch (err) {
+        // Silently fail for partial refresh - don't show error to user
+        console.warn('Partial refresh failed:', err.message)
+      }
+    }, 30000) // Refresh every 30 seconds
+
     return () => clearInterval(interval)
   }, [tenantId])
+
+  const handleManualRefresh = async () => {
+    try {
+      const response = await fetch(getApiUrl(`/v1/tenants/${tenantId}/devices`))
+      if (response.ok) {
+        const data = await response.json()
+        const updatedDevices = (data.data || []).map(device => ({
+          ...device,
+          status: device.status,
+          lastSeen: device.last_message_received_at ? new Date(device.last_message_received_at) : null,
+          batteryLevel: 100, // Always show 100% battery
+          signalStrength: Math.floor(Math.random() * 100)
+        }))
+
+        setDevices(updatedDevices)
+        setLastUpdated(new Date())
+      }
+    } catch (err) {
+      console.warn('Manual refresh failed:', err.message)
+    }
+  }
 
   const fetchTenantInfo = async () => {
     try {
@@ -81,6 +137,7 @@ const TenantPortal = () => {
         signalStrength: Math.floor(Math.random() * 100)
       }))
       setDevices(devicesWithStatus)
+      setLastUpdated(new Date())
     } catch (err) {
       setError(err.message)
     } finally {
@@ -105,9 +162,9 @@ const TenantPortal = () => {
       }
 
       // Update the local devices state
-      setDevices(prevDevices => 
-        prevDevices.map(device => 
-          device.id === deviceId 
+      setDevices(prevDevices =>
+        prevDevices.map(device =>
+          device.id === deviceId
             ? { ...device, display_name: displayName }
             : device
         )
@@ -157,15 +214,16 @@ const TenantPortal = () => {
             </div>
           </div>
           <div className="portal-status">
-            <div className="websocket-status">
-              <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
-                <div className="status-dot"></div>
-                <span>{isConnected ? 'Live Data Connected' : 'Live Data Disconnected'}</span>
-              </div>
-            </div>
             <div className="last-updated">
               <Clock size={16} />
-              <span>Last updated: {new Date().toLocaleTimeString()}</span>
+              <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
+              <button
+                onClick={handleManualRefresh}
+                className="refresh-button"
+                title="Refresh device data"
+              >
+                <RefreshCw size={16} />
+              </button>
             </div>
           </div>
         </div>
@@ -182,7 +240,7 @@ const TenantPortal = () => {
             <p className="stat-number">{deviceStats.total}</p>
           </div>
         </div>
-        
+
         <div className="stat-card online">
           <div className="stat-icon">
             <CheckCircle className="icon" />
@@ -192,7 +250,7 @@ const TenantPortal = () => {
             <p className="stat-number">{deviceStats.online}</p>
           </div>
         </div>
-        
+
         <div className="stat-card offline">
           <div className="stat-icon">
             <XCircle className="icon" />
@@ -202,7 +260,7 @@ const TenantPortal = () => {
             <p className="stat-number">{deviceStats.offline}</p>
           </div>
         </div>
-        
+
         <div className="stat-card">
           <div className="stat-icon">
             <Wifi className="icon" />
@@ -237,7 +295,7 @@ const TenantPortal = () => {
             {devices.map((device) => (
               <TenantDeviceCard
                 key={device.id}
-                device={device}
+                device={{ ...device, tenant_id: tenantId }}
                 sensorData={deviceSensorData[device.name]} // Pass latest sensor data
                 onUpdateDisplayName={handleUpdateDisplayName}
               />

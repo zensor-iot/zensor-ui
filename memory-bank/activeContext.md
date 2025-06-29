@@ -1,4 +1,53 @@
-# Active Context: Zensor Portal UI
+# Active Context - Zensor Portal UI
+
+## Current Work Focus
+**Scheduled Irrigation Implementation** - Successfully implemented periodic irrigation using scheduled tasks in the tenant portal.
+
+## Recent Changes (Latest Session)
+### Scheduled Irrigation Feature
+- **Created ScheduledIrrigation Component**: New React component for managing scheduled irrigation tasks
+- **Added API Integration**: Extended `api.js` with `scheduledTasksApi` functions for CRUD operations
+- **Enhanced TenantDeviceCard**: Integrated scheduled irrigation section below manual irrigation controls
+- **Added Comprehensive UI**: Form for creating/editing schedules, list view of existing tasks, and status management
+
+### Technical Implementation Details
+- **Cron Expression Support**: Users can input custom cron expressions or use preset examples (Daily 6 AM, 12 PM, 6 PM)
+- **Duration Control**: Configurable irrigation duration (1-60 minutes) with increment/decrement controls
+- **Task Management**: Create, edit, delete, and toggle active/inactive status for scheduled tasks
+- **Human-Readable Display**: Cron expressions are parsed and displayed in user-friendly format
+- **Error Handling**: Comprehensive error states and user feedback
+- **Responsive Design**: Mobile-friendly interface with proper responsive breakpoints
+
+### API Integration
+- **Endpoints Used**: `/v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks`
+- **Operations**: GET (list), POST (create), PUT (update), DELETE (remove)
+- **Command Structure**: Irrigation commands with duration payload in seconds
+- **Schedule Format**: Standard cron expressions (6 fields: second minute hour day month dayOfWeek)
+
+## Current Status
+✅ **Scheduled Irrigation Feature Complete**
+- All core functionality implemented and tested
+- UI/UX follows established design patterns
+- API integration working with proper error handling
+- Responsive design implemented
+
+## Next Steps
+1. **Testing**: Verify scheduled task creation and management in production environment
+2. **User Feedback**: Gather feedback on usability and feature completeness
+3. **Enhancements**: Consider additional scheduling features (weekly patterns, weather-based scheduling)
+4. **Documentation**: Update user documentation for scheduled irrigation feature
+
+## Active Decisions
+- **Cron Expression UI**: Chose to support both manual cron input and preset examples for better UX
+- **Duration Units**: Using minutes in UI, converting to seconds for API payload
+- **Task Status**: Implemented active/inactive toggle instead of deletion for better data management
+- **Integration Point**: Placed scheduled irrigation below manual controls for logical flow
+
+## Technical Considerations
+- **WebSocket Integration**: Scheduled tasks work independently of real-time data streaming
+- **Error Handling**: Comprehensive error states for network failures and validation errors
+- **State Management**: Local state management with proper cleanup and re-fetching
+- **Performance**: Efficient rendering with proper React patterns and minimal re-renders
 
 ## Current Work Focus
 
@@ -37,54 +86,6 @@
 - ✅ **Error Handling**: Comprehensive error states and recovery mechanisms
 - ✅ **State Management**: Proper component state management with React hooks
 - ✅ **CSS Architecture**: Consistent styling with CSS variables and responsive design
-
-## Next Steps
-
-### Immediate Priorities
-1. **Testing**: Verify all relay control features work correctly in production
-2. **Documentation**: Update user documentation for new relay control features
-3. **Performance**: Monitor WebSocket performance with full width layout
-
-### Short-term Enhancements
-1. **Authentication**: Implement user authentication and session management
-2. **Advanced Filtering**: Add complex device and data filtering capabilities
-3. **Data Visualization**: Implement charts and graphs for sensor data
-4. **Notifications**: Add real-time notifications for device events
-
-### Technical Improvements
-1. **TypeScript Migration**: Consider migrating from JavaScript for better type safety
-2. **Testing Framework**: Add unit and integration tests
-3. **State Management**: Evaluate need for more sophisticated state management
-4. **Performance Monitoring**: Add analytics and performance tracking
-
-## Active Decisions
-
-### Design Decisions
-- **Full Width Layout**: Chosen to maximize screen real estate and provide better data visualization
-- **Relay State Management**: Implemented WebSocket-based state synchronization for accurate device control
-- **Safety Controls**: Added comprehensive safety checks to prevent conflicting irrigation operations
-
-### Technical Decisions
-- **CSS Variables**: Using CSS variables for consistent theming and easy customization
-- **Component Architecture**: Functional components with custom hooks for reusable logic
-- **WebSocket Management**: Custom hook for centralized WebSocket connection management
-
-### User Experience Decisions
-- **Real-time Feedback**: Immediate visual feedback for all user actions
-- **Safety First**: Irrigation controls disabled until safe to operate
-- **Progressive Disclosure**: Show essential information first, details on demand
-
-## Current Challenges
-
-### Technical Challenges
-1. **WebSocket Reliability**: Ensuring stable connections in production environments
-2. **State Synchronization**: Maintaining consistent state between WebSocket data and UI
-3. **Performance**: Optimizing for large numbers of devices and frequent updates
-
-### User Experience Challenges
-1. **Complex Workflows**: Simplifying complex device management operations
-2. **Error Recovery**: Providing clear guidance when operations fail
-3. **Mobile Experience**: Ensuring all features work well on mobile devices
 
 ## Recent Learnings
 

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { getApiUrl } from '../config/api'
+import ScheduledIrrigation from './ScheduledIrrigation'
 
 const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
   const [isEditing, setIsEditing] = useState(false)
@@ -401,31 +402,24 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
               <Clock size={14} />
               Duration (minutes)
             </label>
-            <div className="duration-input-group">
-              <button
-                className="duration-btn"
-                onClick={() => setIrrigationMinutes(Math.max(1, irrigationMinutes - 1))}
-                disabled={isIrrigating || device.status === 'offline' || isRelayActive() || !hasReceivedFirstMessage}
-              >
-                -
-              </button>
+            <div className="duration-slider-container">
               <input
                 id={`duration-${device.id}`}
-                type="number"
+                type="range"
                 min="1"
                 max="60"
                 value={irrigationMinutes}
-                onChange={(e) => setIrrigationMinutes(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
-                className="duration-input"
+                onChange={(e) => setIrrigationMinutes(parseInt(e.target.value))}
+                className="duration-slider"
                 disabled={isIrrigating || device.status === 'offline' || isRelayActive() || !hasReceivedFirstMessage}
               />
-              <button
-                className="duration-btn"
-                onClick={() => setIrrigationMinutes(Math.min(60, irrigationMinutes + 1))}
-                disabled={isIrrigating || device.status === 'offline' || isRelayActive() || !hasReceivedFirstMessage}
-              >
-                +
-              </button>
+              <div className="duration-value">
+                <span>{irrigationMinutes}</span>
+              </div>
+            </div>
+            <div className="duration-display">
+              <Droplets size={14} />
+              <span>Will irrigate for {irrigationMinutes} minute{irrigationMinutes !== 1 ? 's' : ''}</span>
             </div>
           </div>
 
@@ -439,6 +433,13 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
           </button>
         </div>
       </div>
+
+      {/* Scheduled Irrigation */}
+      <ScheduledIrrigation
+        tenantId={device.tenant_id}
+        deviceId={device.id}
+        deviceName={device.display_name || device.name}
+      />
     </div>
   )
 }

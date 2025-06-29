@@ -1,0 +1,514 @@
+import express from 'express';
+import cors from 'cors';
+import { WebSocketServer } from 'ws';
+import { v4 as uuidv4 } from 'uuid';
+import http from 'http';
+
+const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Mock data storage
+const mockData = {
+    tenants: [
+        {
+            id: '550e8400-e29b-41d4-a716-446655440001',
+            name: 'Acme Corporation',
+            email: 'admin@acme.com',
+            description: 'Manufacturing company specializing in IoT solutions',
+            is_active: true,
+            version: 1,
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-15T10:30:00Z',
+            deleted_at: null
+        },
+        {
+            id: '550e8400-e29b-41d4-a716-446655440002',
+            name: 'Green Farms Ltd',
+            email: 'contact@greenfarms.com',
+            description: 'Sustainable agriculture and smart irrigation',
+            is_active: true,
+            version: 1,
+            created_at: '2024-01-05T00:00:00Z',
+            updated_at: '2024-01-20T14:15:00Z',
+            deleted_at: null
+        }
+    ],
+    devices: [
+        {
+            id: '123e4567-e89b-12d3-a456-426614174001',
+            name: 'sensor-001',
+            display_name: 'Temperature Sensor 1',
+            app_eui: '0000000000000001',
+            dev_eui: '0000000000000001',
+            app_key: '00000000000000000000000000000001',
+            tenant_id: '550e8400-e29b-41d4-a716-446655440001',
+            status: 'online',
+            last_message_received_at: new Date().toISOString(),
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-15T10:30:00Z'
+        },
+        {
+            id: '123e4567-e89b-12d3-a456-426614174002',
+            name: 'irrigation-001',
+            display_name: 'Irrigation Controller 1',
+            app_eui: '0000000000000002',
+            dev_eui: '0000000000000002',
+            app_key: '00000000000000000000000000000002',
+            tenant_id: '550e8400-e29b-41d4-a716-446655440001',
+            status: 'online',
+            last_message_received_at: new Date().toISOString(),
+            created_at: '2024-01-02T00:00:00Z',
+            updated_at: '2024-01-15T10:30:00Z'
+        },
+        {
+            id: '123e4567-e89b-12d3-a456-426614174003',
+            name: 'sensor-002',
+            display_name: 'Humidity Sensor 1',
+            app_eui: '0000000000000003',
+            dev_eui: '0000000000000003',
+            app_key: '00000000000000000000000000000003',
+            tenant_id: '550e8400-e29b-41d4-a716-446655440002',
+            status: 'offline',
+            last_message_received_at: '2024-01-10T15:45:00Z',
+            created_at: '2024-01-03T00:00:00Z',
+            updated_at: '2024-01-10T15:45:00Z'
+        }
+    ],
+    scheduledTasks: [
+        {
+            id: 'task-001',
+            device_id: '123e4567-e89b-12d3-a456-426614174002',
+            commands: [
+                {
+                    command: 'irrigation',
+                    payload: { duration: 300 }
+                }
+            ],
+            schedule: '0 0 6 * * *',
+            is_active: true
+        },
+        {
+            id: 'task-002',
+            device_id: '123e4567-e89b-12d3-a456-426614174002',
+            commands: [
+                {
+                    command: 'irrigation',
+                    payload: { duration: 180 }
+                }
+            ],
+            schedule: '0 0 18 * * *',
+            is_active: false
+        }
+    ]
+};
+
+// Helper functions
+const generateMockSensorData = (deviceId) => {
+    const device = mockData.devices.find(d => d.id === deviceId);
+    if (!device) return null;
+
+    const now = new Date();
+    const baseData = {
+        temperature: {
+            Index: 1,
+            Value: 22.5 + (Math.random() - 0.5) * 10
+        },
+        humidity: {
+            Index: 1,
+            Value: 45 + (Math.random() - 0.5) * 20
+        }
+    };
+
+    // Add relay data for irrigation devices
+    if (device.name.includes('irrigation')) {
+        baseData.relay = {
+            Index: 1,
+            Value: Math.random() > 0.8 ? 1 : 0 // 20% chance of being on
+        };
+    }
+
+    return {
+        type: 'device_message',
+        device_id: deviceId,
+        data: baseData,
+        timestamp: now.toISOString(),
+        receivedAt: now.toISOString()
+    };
+};
+
+// WebSocket connection handling
+wss.on('connection', (ws) => {
+    console.log('🔌 WebSocket client connected');
+
+    // Send initial data
+    const initialData = mockData.devices.map(device => generateMockSensorData(device.id)).filter(Boolean);
+    ws.send(JSON.stringify(initialData[0])); // Send first device data
+
+    // Send periodic updates
+    const interval = setInterval(() => {
+        if (ws.readyState === ws.OPEN) {
+            const randomDevice = mockData.devices[Math.floor(Math.random() * mockData.devices.length)];
+            const sensorData = generateMockSensorData(randomDevice.id);
+            if (sensorData) {
+                ws.send(JSON.stringify(sensorData));
+            }
+        }
+    }, 5000); // Send update every 5 seconds
+
+    ws.on('close', () => {
+        console.log('🔌 WebSocket client disconnected');
+        clearInterval(interval);
+    });
+});
+
+// Health check
+app.get('/healthz', (req, res) => {
+    res.json({ status: 'success' });
+});
+
+// Metrics
+app.get('/metrics', (req, res) => {
+    res.set('Content-Type', 'text/plain');
+    res.send(`
+# HELP zensor_server_requests_total Total number of requests
+# TYPE zensor_server_requests_total counter
+zensor_server_requests_total{method="GET",endpoint="/healthz"} 42
+zensor_server_requests_total{method="GET",endpoint="/v1/tenants"} 15
+zensor_server_requests_total{method="GET",endpoint="/v1/devices"} 23
+  `);
+});
+
+// Tenants endpoints
+app.get('/v1/tenants', (req, res) => {
+    const { page = 1, limit = 10, include_deleted = false } = req.query;
+    const offset = (page - 1) * limit;
+
+    let tenants = mockData.tenants;
+    if (!include_deleted) {
+        tenants = tenants.filter(t => !t.deleted_at);
+    }
+
+    const paginatedTenants = tenants.slice(offset, offset + parseInt(limit));
+
+    res.json({
+        tenants: paginatedTenants,
+        total: tenants.length
+    });
+});
+
+app.post('/v1/tenants', (req, res) => {
+    const { name, email, description } = req.body;
+
+    if (!name || !email) {
+        return res.status(400).json({ message: 'Name and email are required' });
+    }
+
+    const newTenant = {
+        id: uuidv4(),
+        name,
+        email,
+        description: description || '',
+        is_active: true,
+        version: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        deleted_at: null
+    };
+
+    mockData.tenants.push(newTenant);
+    res.status(201).json(newTenant);
+});
+
+app.get('/v1/tenants/:id', (req, res) => {
+    const tenant = mockData.tenants.find(t => t.id === req.params.id);
+    if (!tenant) {
+        return res.status(404).json({ message: 'Tenant not found' });
+    }
+    res.json(tenant);
+});
+
+app.put('/v1/tenants/:id', (req, res) => {
+    const tenant = mockData.tenants.find(t => t.id === req.params.id);
+    if (!tenant) {
+        return res.status(404).json({ message: 'Tenant not found' });
+    }
+
+    Object.assign(tenant, req.body, {
+        updated_at: new Date().toISOString(),
+        version: (tenant.version || 0) + 1
+    });
+
+    res.json(tenant);
+});
+
+// Tenant devices
+app.get('/v1/tenants/:id/devices', (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const tenantDevices = mockData.devices.filter(d => d.tenant_id === req.params.id);
+    const paginatedDevices = tenantDevices.slice(offset, offset + parseInt(limit));
+
+    res.json({
+        data: paginatedDevices,
+        total: tenantDevices.length
+    });
+});
+
+app.post('/v1/tenants/:id/devices', (req, res) => {
+    const { device_id } = req.body;
+
+    if (!device_id) {
+        return res.status(400).json({ message: 'Device ID is required' });
+    }
+
+    const device = mockData.devices.find(d => d.id === device_id);
+    if (!device) {
+        return res.status(404).json({ message: 'Device not found' });
+    }
+
+    device.tenant_id = req.params.id;
+    device.updated_at = new Date().toISOString();
+
+    res.status(201).json(device);
+});
+
+// Devices endpoints
+app.get('/v1/devices', (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const paginatedDevices = mockData.devices.slice(offset, offset + parseInt(limit));
+
+    res.json({
+        data: paginatedDevices,
+        total: mockData.devices.length
+    });
+});
+
+app.post('/v1/devices', (req, res) => {
+    const { name, display_name, app_eui, dev_eui, app_key } = req.body;
+
+    if (!name) {
+        return res.status(400).json({ message: 'Device name is required' });
+    }
+
+    const newDevice = {
+        id: uuidv4(),
+        name,
+        display_name: display_name || name,
+        app_eui: app_eui || '0000000000000000',
+        dev_eui: dev_eui || '0000000000000000',
+        app_key: app_key || '00000000000000000000000000000000',
+        tenant_id: null,
+        status: 'offline',
+        last_message_received_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+    };
+
+    mockData.devices.push(newDevice);
+    res.status(201).json(newDevice);
+});
+
+app.get('/v1/devices/:id', (req, res) => {
+    const device = mockData.devices.find(d => d.id === req.params.id);
+    if (!device) {
+        return res.status(404).json({ message: 'Device not found' });
+    }
+    res.json(device);
+});
+
+app.put('/v1/devices/:id', (req, res) => {
+    const device = mockData.devices.find(d => d.id === req.params.id);
+    if (!device) {
+        return res.status(404).json({ message: 'Device not found' });
+    }
+
+    Object.assign(device, req.body, {
+        updated_at: new Date().toISOString()
+    });
+
+    res.json(device);
+});
+
+// Device tasks
+app.get('/v1/devices/:id/tasks', (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Mock tasks for the device
+    const mockTasks = [
+        {
+            id: uuidv4(),
+            device_id: req.params.id,
+            commands: [
+                {
+                    command: 'irrigation',
+                    payload: { duration: 300 }
+                }
+            ],
+            created_at: new Date().toISOString()
+        }
+    ];
+
+    res.json({
+        tasks: mockTasks.slice(offset, offset + parseInt(limit)),
+        total: mockTasks.length
+    });
+});
+
+app.post('/v1/devices/:id/tasks', (req, res) => {
+    const { commands } = req.body;
+
+    if (!commands || !Array.isArray(commands)) {
+        return res.status(400).json({ message: 'Commands array is required' });
+    }
+
+    const newTask = {
+        id: uuidv4(),
+        device_id: req.params.id,
+        commands,
+        created_at: new Date().toISOString()
+    };
+
+    res.status(201).json(newTask);
+});
+
+// Scheduled tasks
+app.get('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks', (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const tasks = mockData.scheduledTasks.filter(
+        task => task.device_id === req.params.deviceId
+    );
+
+    const paginatedTasks = tasks.slice(offset, offset + parseInt(limit));
+
+    res.json({
+        scheduled_tasks: paginatedTasks,
+        total: tasks.length
+    });
+});
+
+app.post('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks', (req, res) => {
+    const { commands, schedule, is_active = true } = req.body;
+
+    if (!commands || !schedule) {
+        return res.status(400).json({ message: 'Commands and schedule are required' });
+    }
+
+    const newTask = {
+        id: uuidv4(),
+        device_id: req.params.deviceId,
+        commands,
+        schedule,
+        is_active
+    };
+
+    mockData.scheduledTasks.push(newTask);
+    res.status(201).json(newTask);
+});
+
+app.get('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks/:id', (req, res) => {
+    const task = mockData.scheduledTasks.find(
+        t => t.id === req.params.id && t.device_id === req.params.deviceId
+    );
+
+    if (!task) {
+        return res.status(404).json({ message: 'Scheduled task not found' });
+    }
+
+    res.json(task);
+});
+
+app.put('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks/:id', (req, res) => {
+    const task = mockData.scheduledTasks.find(
+        t => t.id === req.params.id && t.device_id === req.params.deviceId
+    );
+
+    if (!task) {
+        return res.status(404).json({ message: 'Scheduled task not found' });
+    }
+
+    Object.assign(task, req.body);
+    res.json(task);
+});
+
+app.delete('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks/:id', (req, res) => {
+    const taskIndex = mockData.scheduledTasks.findIndex(
+        t => t.id === req.params.id && t.device_id === req.params.deviceId
+    );
+
+    if (taskIndex === -1) {
+        return res.status(404).json({ message: 'Scheduled task not found' });
+    }
+
+    mockData.scheduledTasks.splice(taskIndex, 1);
+    res.status(204).send();
+});
+
+// Error handling
+app.use((err, req, res, next) => {
+    console.error('Error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+});
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({ message: 'Endpoint not found' });
+});
+
+// Start server
+const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
+
+server.listen(PORT, HOST, () => {
+    console.log('🚀 Zensor Mock Server started successfully!');
+    console.log(`📄 Server URL: http://${HOST}:${PORT}`);
+    console.log(`🔗 WebSocket URL: ws://${HOST}:${PORT}/ws/device-messages`);
+    console.log('');
+    console.log('📋 Available endpoints:');
+    console.log('   GET  /healthz                    - Health check');
+    console.log('   GET  /metrics                    - Prometheus metrics');
+    console.log('   GET  /v1/tenants                 - List tenants');
+    console.log('   POST /v1/tenants                 - Create tenant');
+    console.log('   GET  /v1/tenants/{id}            - Get tenant');
+    console.log('   PUT  /v1/tenants/{id}            - Update tenant');
+    console.log('   GET  /v1/tenants/{id}/devices    - List tenant devices');
+    console.log('   POST /v1/tenants/{id}/devices    - Adopt device');
+    console.log('   GET  /v1/devices                 - List all devices');
+    console.log('   POST /v1/devices                 - Create device');
+    console.log('   GET  /v1/devices/{id}            - Get device');
+    console.log('   PUT  /v1/devices/{id}            - Update device');
+    console.log('   GET  /v1/devices/{id}/tasks      - List device tasks');
+    console.log('   POST /v1/devices/{id}/tasks      - Create task');
+    console.log('   GET  /v1/tenants/{tid}/devices/{did}/scheduled-tasks - List scheduled tasks');
+    console.log('   POST /v1/tenants/{tid}/devices/{did}/scheduled-tasks - Create scheduled task');
+    console.log('   GET  /ws/device-messages         - WebSocket endpoint');
+    console.log('');
+    console.log('🔧 Press Ctrl+C to stop the server');
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('\n🛑 Shutting down mock server...');
+    server.close(() => {
+        console.log('✅ Server closed');
+        process.exit(0);
+    });
+});
+
+process.on('SIGTERM', () => {
+    console.log('\n🛑 Shutting down mock server...');
+    server.close(() => {
+        console.log('✅ Server closed');
+        process.exit(0);
+    });
+}); 
