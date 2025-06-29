@@ -36,7 +36,7 @@ export const buildApiEndpoint = (endpoint, ...params) => {
 
     // Replace parameters in the path
     params.forEach(param => {
-        path = path.replace(/\/:[^/]+/, `/${param}`)
+        path = path.replace(/\{[^}]+\}/, param)
     })
 
     return getApiUrl(path)
@@ -111,6 +111,18 @@ export const scheduledTasksApi = {
 
         if (!response.ok) {
             throw new Error(`Failed to fetch scheduled task: ${response.status}`)
+        }
+
+        return response.json()
+    },
+
+    // Get task executions for a scheduled task
+    async getTaskExecutions(tenantId, deviceId, scheduledTaskId, limit = 3) {
+        const url = buildApiEndpoint('scheduledTasks', tenantId, deviceId) + `/${scheduledTaskId}/tasks`
+        const response = await fetch(`${url}?limit=${limit}`)
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch task executions: ${response.status}`)
         }
 
         return response.json()

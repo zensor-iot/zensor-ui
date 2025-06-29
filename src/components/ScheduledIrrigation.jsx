@@ -10,7 +10,8 @@ import {
     Calendar,
     X,
     Check,
-    Settings
+    Settings,
+    List
 } from 'lucide-react'
 import { scheduledTasksApi } from '../config/api'
 import './ScheduledIrrigation.css'
@@ -21,6 +22,11 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
     const [error, setError] = useState(null)
     const [showModal, setShowModal] = useState(false)
     const [editingTask, setEditingTask] = useState(null)
+    const [showExecutionsModal, setShowExecutionsModal] = useState(false)
+    const [selectedTask, setSelectedTask] = useState(null)
+    const [taskExecutions, setTaskExecutions] = useState([])
+    const [executionsLoading, setExecutionsLoading] = useState(false)
+    const [executionsError, setExecutionsError] = useState(null)
 
     // Form state with human-friendly options
     const [formData, setFormData] = useState({
@@ -273,6 +279,37 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
         }
     }
 
+    // Load task executions
+    const loadTaskExecutions = async (taskId) => {
+        try {
+            setExecutionsLoading(true)
+            setExecutionsError(null)
+            const response = await scheduledTasksApi.getTaskExecutions(tenantId, deviceId, taskId, 3)
+            setTaskExecutions(response.tasks || [])
+        } catch (err) {
+            setExecutionsError(err.message)
+            console.error('Failed to load task executions:', err)
+        } finally {
+            setExecutionsLoading(false)
+        }
+    }
+
+    // Handle showing executions for a task
+    const handleShowExecutions = async (task) => {
+        console.log('Show executions clicked for task:', task.id)
+        setSelectedTask(task)
+        setShowExecutionsModal(true)
+        await loadTaskExecutions(task.id)
+    }
+
+    // Close executions modal
+    const closeExecutionsModal = () => {
+        setShowExecutionsModal(false)
+        setSelectedTask(null)
+        setTaskExecutions([])
+        setExecutionsError(null)
+    }
+
     if (loading) {
         return (
             <div className="scheduled-irrigation">
@@ -348,6 +385,13 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
                                 </div>
 
                                 <div className="task-actions">
+                                    <button
+                                        onClick={() => handleShowExecutions(task)}
+                                        className="executions-btn"
+                                        title="View Executions"
+                                    >
+                                        <Calendar size={14} />
+                                    </button>
                                     <button
                                         onClick={() => handleToggleActive(task)}
                                         className={`toggle-btn ${task.is_active ? 'pause' : 'play'}`}
@@ -534,6 +578,103 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Executions Modal */}
+            {showExecutionsModal && (
+                <div className="modal-overlay" onClick={closeExecutionsModal}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Last 3 Task Executions</h3>
+                            <button onClick={closeExecutionsModal} className="modal-close-btn">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {selectedTask && (
+                            <div className="task-info-header">
+                                <div className="task-schedule">
+                                    <Clock size={16} />
+                                    <span>{parseCronExpression(selectedTask.schedule)}</span>
+                                </div>
+                                <div className="task-duration">
+                                    <Droplets size={14} />
+                                    <span>{getTaskDuration(selectedTask)} minutes</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {executionsLoading ? (
+                            <div className="modal-loading">
+                                <div className="loading-spinner"></div>
+                                <span>Loading executions...</span>
+                            </div>
+                        ) : executionsError ? (
+                            <div className="modal-error">
+                                <span>{executionsError}</span>
+                                <button onClick={() => setExecutionsError(null)}>
+                                    <X size={14} />
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="executions-list">
+                                    {taskExecutions.length === 0 ? (
+                                        <div className="empty-state">
+                                            <Calendar size={48} />
+                                            <h4>No executions found</h4>
+                                            <p>This scheduled task has not been executed yet.</p>
+                                        </div>
+                                    ) : (
+                                        taskExecutions.map((execution) => {
+                                            const startCommand = execution.commands[0];
+                                            const endCommand = execution.commands[1];
+
+                                            const formatDateTime = (dateString) => {
+                                                if (!dateString) return 'Unknown';
+                                                const date = new Date(dateString);
+                                                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+                                                const day = days[date.getDay()];
+                                                const dayNum = date.getDate();
+                                                const month = months[date.getMonth()];
+                                                const hours = date.getHours().toString().padStart(2, '0');
+                                                const minutes = date.getMinutes().toString().padStart(2, '0');
+
+                                                return `${day} ${dayNum} ${month}, ${hours}:${minutes}`;
+                                            };
+
+                                            return (
+                                                <div key={execution.id} className="execution-item">
+                                                    <div className="execution-info">
+                                                        <div className="execution-timestamp">
+                                                            <Clock size={14} />
+                                                            <span><strong>Started:</strong> {formatDateTime(startCommand?.sent_at)}</span>
+                                                        </div>
+                                                        <div className="execution-timestamp">
+                                                            <Clock size={14} />
+                                                            <span><strong>Ended:</strong> {endCommand?.sent_at ? formatDateTime(endCommand.sent_at) : <em>In progress</em>}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="execution-status">
+                                                        <div className="status-indicator completed" />
+                                                        <span>Completed</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                                <div className="modal-actions">
+                                    <button onClick={closeExecutionsModal} className="close-btn">
+                                        Close
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}

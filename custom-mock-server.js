@@ -104,6 +104,84 @@ const mockData = {
             schedule: '0 0 18 * * *',
             is_active: false
         }
+    ],
+    taskExecutions: [
+        {
+            id: 'exec-001',
+            task_id: 'task-001',
+            device_id: '123e4567-e89b-12d3-a456-426614174002',
+            commands: [
+                {
+                    id: uuidv4(),
+                    index: 1,
+                    value: 1,
+                    port: 1,
+                    priority: 'NORMAL',
+                    dispatch_after: '2024-01-15T06:00:00Z',
+                    ready: true,
+                    sent: true,
+                    sent_at: '2024-01-15T06:00:00Z'
+                }
+            ],
+            created_at: '2024-01-15T06:00:00Z'
+        },
+        {
+            id: 'exec-002',
+            task_id: 'task-001',
+            device_id: '123e4567-e89b-12d3-a456-426614174002',
+            commands: [
+                {
+                    id: uuidv4(),
+                    index: 1,
+                    value: 1,
+                    port: 1,
+                    priority: 'NORMAL',
+                    dispatch_after: '2024-01-14T06:00:00Z',
+                    ready: true,
+                    sent: true,
+                    sent_at: '2024-01-14T06:00:00Z'
+                }
+            ],
+            created_at: '2024-01-14T06:00:00Z'
+        },
+        {
+            id: 'exec-003',
+            task_id: 'task-001',
+            device_id: '123e4567-e89b-12d3-a456-426614174002',
+            commands: [
+                {
+                    id: uuidv4(),
+                    index: 1,
+                    value: 1,
+                    port: 1,
+                    priority: 'NORMAL',
+                    dispatch_after: '2024-01-13T06:00:00Z',
+                    ready: true,
+                    sent: true,
+                    sent_at: '2024-01-13T06:00:00Z'
+                }
+            ],
+            created_at: '2024-01-13T06:00:00Z'
+        },
+        {
+            id: 'exec-004',
+            task_id: 'task-002',
+            device_id: '123e4567-e89b-12d3-a456-426614174002',
+            commands: [
+                {
+                    id: uuidv4(),
+                    index: 1,
+                    value: 1,
+                    port: 1,
+                    priority: 'NORMAL',
+                    dispatch_after: '2024-01-10T18:00:00Z',
+                    ready: true,
+                    sent: true,
+                    sent_at: '2024-01-10T18:00:00Z'
+                }
+            ],
+            created_at: '2024-01-10T18:00:00Z'
+        }
     ]
 };
 
@@ -454,6 +532,26 @@ app.delete('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks/:id', (req, 
     res.status(204).send();
 });
 
+// Task executions for scheduled tasks
+app.get('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks/:id/tasks', (req, res) => {
+    const { limit = 3 } = req.query;
+
+    // Find executions for the specific scheduled task
+    const executions = mockData.taskExecutions.filter(
+        exec => exec.task_id === req.params.id
+    );
+
+    // Sort by created_at descending (most recent first) and limit
+    const sortedExecutions = executions
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, parseInt(limit));
+
+    res.json({
+        tasks: sortedExecutions,
+        total: executions.length
+    });
+});
+
 // Error handling
 app.use((err, req, res, next) => {
     console.error('Error:', err);
@@ -491,6 +589,10 @@ server.listen(PORT, HOST, () => {
     console.log('   POST /v1/devices/{id}/tasks      - Create task');
     console.log('   GET  /v1/tenants/{tid}/devices/{did}/scheduled-tasks - List scheduled tasks');
     console.log('   POST /v1/tenants/{tid}/devices/{did}/scheduled-tasks - Create scheduled task');
+    console.log('   GET  /v1/tenants/{tid}/devices/{did}/scheduled-tasks/{id} - Get scheduled task');
+    console.log('   PUT  /v1/tenants/{tid}/devices/{did}/scheduled-tasks/{id} - Update scheduled task');
+    console.log('   DELETE /v1/tenants/{tid}/devices/{did}/scheduled-tasks/{id} - Delete scheduled task');
+    console.log('   GET  /v1/tenants/{tid}/devices/{did}/scheduled-tasks/{id}/tasks - Get task executions');
     console.log('   GET  /ws/device-messages         - WebSocket endpoint');
     console.log('');
     console.log('🔧 Press Ctrl+C to stop the server');
