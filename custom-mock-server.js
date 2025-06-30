@@ -36,6 +36,39 @@ const mockData = {
             created_at: '2024-01-05T00:00:00Z',
             updated_at: '2024-01-20T14:15:00Z',
             deleted_at: null
+        },
+        {
+            id: '550e8400-e29b-41d4-a716-446655440003',
+            name: 'Tech Solutions Inc',
+            email: 'info@techsolutions.com',
+            description: 'Technology consulting and IoT integration services',
+            is_active: true,
+            version: 1,
+            created_at: '2024-01-10T00:00:00Z',
+            updated_at: '2024-01-25T09:20:00Z',
+            deleted_at: null
+        },
+        {
+            id: '550e8400-e29b-41d4-a716-446655440004',
+            name: 'Smart City Corp',
+            email: 'admin@smartcity.com',
+            description: 'Municipal IoT infrastructure and smart city solutions',
+            is_active: true,
+            version: 1,
+            created_at: '2024-01-12T00:00:00Z',
+            updated_at: '2024-01-28T16:45:00Z',
+            deleted_at: null
+        },
+        {
+            id: '550e8400-e29b-41d4-a716-446655440005',
+            name: 'Industrial IoT Ltd',
+            email: 'contact@industrialiot.com',
+            description: 'Industrial automation and IoT monitoring systems',
+            is_active: false,
+            version: 1,
+            created_at: '2024-01-15T00:00:00Z',
+            updated_at: '2024-01-30T11:30:00Z',
+            deleted_at: null
         }
     ],
     devices: [
@@ -273,9 +306,13 @@ app.get('/v1/tenants', (req, res) => {
 
     const paginatedTenants = tenants.slice(offset, offset + parseInt(limit));
 
+    // Return the paginated response structure with "data" field
     res.json({
-        tenants: paginatedTenants,
-        total: tenants.length
+        data: paginatedTenants,
+        total: tenants.length,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total_pages: Math.ceil(tenants.length / parseInt(limit))
     });
 });
 

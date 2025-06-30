@@ -20,7 +20,7 @@ const TenantList = () => {
         throw new Error(`Failed to fetch tenants: ${response.status}`)
       }
       const data = await response.json()
-      setTenants(data.tenants || [])
+      setTenants(data.data || [])
     } catch (err) {
       setError(err.message)
     } finally {
