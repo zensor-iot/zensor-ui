@@ -43,7 +43,7 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
             setLoading(true)
             setError(null)
             const response = await scheduledTasksApi.getScheduledTasks(tenantId, deviceId)
-            setScheduledTasks(response.scheduled_tasks || [])
+            setScheduledTasks(response.data || [])
         } catch (err) {
             setError(err.message)
             console.error('Failed to load scheduled tasks:', err)
@@ -298,7 +298,7 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
             setExecutionsLoading(true)
             setExecutionsError(null)
             const response = await scheduledTasksApi.getTaskExecutions(tenantId, deviceId, taskId, 3)
-            setTaskExecutions(response.tasks || [])
+            setTaskExecutions(response.data || [])
         } catch (err) {
             setExecutionsError(err.message)
             console.error('Failed to load task executions:', err)

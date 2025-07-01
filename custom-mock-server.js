@@ -325,10 +325,12 @@ app.get('/v1/tenants', (req, res) => {
     // Return the paginated response structure with "data" field
     res.json({
         data: paginatedTenants,
-        total: tenants.length,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total_pages: Math.ceil(tenants.length / parseInt(limit))
+        pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: tenants.length,
+            total_pages: Math.ceil(tenants.length / parseInt(limit))
+        }
     });
 });
 
@@ -385,9 +387,16 @@ app.get('/v1/tenants/:id/devices', (req, res) => {
     const tenantDevices = mockData.devices.filter(d => d.tenant_id === req.params.id);
     const paginatedDevices = tenantDevices.slice(offset, offset + parseInt(limit));
 
+    const totalPages = Math.ceil(tenantDevices.length / parseInt(limit));
+
     res.json({
         data: paginatedDevices,
-        total: tenantDevices.length
+        pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: tenantDevices.length,
+            total_pages: totalPages
+        }
     });
 });
 
@@ -416,9 +425,16 @@ app.get('/v1/devices', (req, res) => {
 
     const paginatedDevices = mockData.devices.slice(offset, offset + parseInt(limit));
 
+    const totalPages = Math.ceil(mockData.devices.length / parseInt(limit));
+
     res.json({
         data: paginatedDevices,
-        total: mockData.devices.length
+        pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: mockData.devices.length,
+            total_pages: totalPages
+        }
     });
 });
 
@@ -496,9 +512,17 @@ app.get('/v1/devices/:id/tasks', (req, res) => {
         }
     ];
 
+    const paginatedTasks = mockTasks.slice(offset, offset + parseInt(limit));
+    const totalPages = Math.ceil(mockTasks.length / parseInt(limit));
+
     res.json({
-        tasks: mockTasks.slice(offset, offset + parseInt(limit)),
-        total: mockTasks.length
+        data: paginatedTasks,
+        pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: mockTasks.length,
+            total_pages: totalPages
+        }
     });
 });
 
@@ -529,10 +553,16 @@ app.get('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks', (req, res) =>
     );
 
     const paginatedTasks = tasks.slice(offset, offset + parseInt(limit));
+    const totalPages = Math.ceil(tasks.length / parseInt(limit));
 
     res.json({
-        scheduled_tasks: paginatedTasks,
-        total: tasks.length
+        data: paginatedTasks,
+        pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: tasks.length,
+            total_pages: totalPages
+        }
     });
 });
 
@@ -595,21 +625,29 @@ app.delete('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks/:id', (req, 
 
 // Task executions for scheduled tasks
 app.get('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks/:id/tasks', (req, res) => {
-    const { limit = 3 } = req.query;
+    const { page = 1, limit = 3 } = req.query;
+    const offset = (page - 1) * limit;
 
     // Find executions for the specific scheduled task
     const executions = mockData.taskExecutions.filter(
         exec => exec.task_id === req.params.id
     );
 
-    // Sort by created_at descending (most recent first) and limit
+    // Sort by created_at descending (most recent first) and paginate
     const sortedExecutions = executions
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, parseInt(limit));
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    const paginatedExecutions = sortedExecutions.slice(offset, offset + parseInt(limit));
+    const totalPages = Math.ceil(executions.length / parseInt(limit));
 
     res.json({
-        tasks: sortedExecutions,
-        total: executions.length
+        data: paginatedExecutions,
+        pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: executions.length,
+            total_pages: totalPages
+        }
     });
 });
 
