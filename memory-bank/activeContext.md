@@ -21,7 +21,7 @@
 ### API Integration
 - **Endpoints Used**: `/v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks`
 - **Operations**: GET (list), POST (create), PUT (update), DELETE (remove)
-- **Command Structure**: Irrigation commands with duration payload in seconds
+- **Command Structure**: Two irrigation commands per task - activate (value=1) and deactivate (value=0) with duration-based wait_for
 - **Schedule Format**: Standard cron expressions (6 fields: second minute hour day month dayOfWeek)
 
 ## Current Status
@@ -39,7 +39,7 @@
 
 ## Active Decisions
 - **Cron Expression UI**: Chose to support both manual cron input and preset examples for better UX
-- **Duration Units**: Using minutes in UI, converting to seconds for API payload
+- **Duration Units**: Using two commands - activate immediately (value=1) and deactivate after user-selected duration (value=0)
 - **Task Status**: Implemented active/inactive toggle instead of deletion for better data management
 - **Integration Point**: Placed scheduled irrigation below manual controls for logical flow
 

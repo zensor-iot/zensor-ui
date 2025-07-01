@@ -169,7 +169,10 @@ curl http://localhost:3000/v1/tenants/550e8400-e29b-41d4-a716-446655440001/devic
 curl -X POST http://localhost:3000/v1/tenants/550e8400-e29b-41d4-a716-446655440001/devices/123e4567-e89b-12d3-a456-426614174002/scheduled-tasks \
   -H "Content-Type: application/json" \
   -d '{
-    "commands": [{"command": "irrigation", "payload": {"duration": 300}}],
+    "commands": [
+  {"index": 1, "value": 1, "priority": "NORMAL", "wait_for": "0s"},
+  {"index": 1, "value": 0, "priority": "NORMAL", "wait_for": "5m"}
+],
     "schedule": "0 0 12 * * *",
     "is_active": true
   }'

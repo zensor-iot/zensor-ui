@@ -43,7 +43,7 @@ IoT device management at scale requires a sophisticated interface that can handl
 #### Irrigation Control Flow (Specialized)
 1. **Device Selection**: Choose specific irrigation device
 2. **Status Check**: Verify relay state (On/Off) before control
-3. **Command Execution**: Send irrigation commands with duration
+3. **Command Execution**: Send two irrigation commands - activate relay (value=1) and deactivate after duration (value=0)
 4. **Real-time Feedback**: Monitor relay state changes via WebSocket
 5. **Safety Controls**: Prevent conflicting operations when relay is active
 

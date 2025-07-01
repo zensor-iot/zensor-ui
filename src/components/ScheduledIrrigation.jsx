@@ -115,10 +115,16 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
             const taskData = {
                 commands: [
                     {
-                        command: 'irrigation',
-                        payload: {
-                            duration: formData.duration * 60 // Convert to seconds
-                        }
+                        index: 1,
+                        value: 1, // Activate relay
+                        priority: "NORMAL",
+                        wait_for: "0s"
+                    },
+                    {
+                        index: 1,
+                        value: 0, // Deactivate relay
+                        priority: "NORMAL",
+                        wait_for: `${formData.duration}m` // Wait for user's selected duration
                     }
                 ],
                 schedule: cronExpression,
@@ -178,7 +184,7 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
         const formDataFromCron = cronToFormData(task.schedule)
         setFormData({
             ...formDataFromCron,
-            duration: task.commands[0]?.payload?.duration ? Math.floor(task.commands[0].payload.duration / 60) : 5,
+            duration: getTaskDuration(task),
             isActive: task.is_active
         })
         setShowModal(true)
@@ -246,11 +252,18 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
 
     // Get duration from task commands
     const getTaskDuration = (task) => {
-        const irrigationCommand = task.commands?.find(cmd => cmd.command === 'irrigation')
-        if (irrigationCommand?.payload?.duration) {
-            return Math.floor(irrigationCommand.payload.duration / 60)
+        // Extract duration from the second command's wait_for field
+        if (task.commands && task.commands.length >= 2) {
+            const deactivateCommand = task.commands[1]
+            if (deactivateCommand.wait_for) {
+                // Parse wait_for format like "5m" to get minutes
+                const match = deactivateCommand.wait_for.match(/(\d+)m/)
+                if (match) {
+                    return parseInt(match[1])
+                }
+            }
         }
-        return 5 // Default
+        return 5 // Default duration in minutes
     }
 
     // Get human-readable schedule description

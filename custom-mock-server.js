@@ -118,8 +118,16 @@ const mockData = {
             device_id: '123e4567-e89b-12d3-a456-426614174002',
             commands: [
                 {
-                    command: 'irrigation',
-                    payload: { duration: 300 }
+                    index: 1,
+                    value: 1, // Activate relay
+                    priority: "NORMAL",
+                    wait_for: "0s"
+                },
+                {
+                    index: 1,
+                    value: 0, // Deactivate relay
+                    priority: "NORMAL",
+                    wait_for: "5m" // 5 minutes duration
                 }
             ],
             schedule: '0 0 6 * * *',
@@ -130,8 +138,16 @@ const mockData = {
             device_id: '123e4567-e89b-12d3-a456-426614174002',
             commands: [
                 {
-                    command: 'irrigation',
-                    payload: { duration: 180 }
+                    index: 1,
+                    value: 1, // Activate relay
+                    priority: "NORMAL",
+                    wait_for: "0s"
+                },
+                {
+                    index: 1,
+                    value: 0, // Deactivate relay
+                    priority: "NORMAL",
+                    wait_for: "3m" // 3 minutes duration
                 }
             ],
             schedule: '0 0 18 * * *',
@@ -464,8 +480,16 @@ app.get('/v1/devices/:id/tasks', (req, res) => {
             device_id: req.params.id,
             commands: [
                 {
-                    command: 'irrigation',
-                    payload: { duration: 300 }
+                    index: 1,
+                    value: 1, // Activate relay
+                    priority: "NORMAL",
+                    wait_for: "0s"
+                },
+                {
+                    index: 1,
+                    value: 0, // Deactivate relay
+                    priority: "NORMAL",
+                    wait_for: "5m" // 5 minutes duration
                 }
             ],
             created_at: new Date().toISOString()

@@ -73,8 +73,10 @@ Zensor Portal UI is a React-based IoT device management interface for the Zensor
 - Use responsive design for mobile compatibility
 
 ### Command Structure
-- Use irrigation commands with duration payload in seconds
-- Structure: `{ command: 'irrigation', payload: { duration: seconds } }`
+- Use irrigation commands with index, value, priority, and wait_for fields
+- Structure: Two commands per irrigation task:
+  - Activate: `{ index: 1, value: 1, priority: "NORMAL", wait_for: "0s" }`
+  - Deactivate: `{ index: 1, value: 0, priority: "NORMAL", wait_for: "5m" }`
 - Support multiple commands per scheduled task
 - Handle command validation and error states
 
@@ -227,8 +229,10 @@ useEffect(() => {
 // Create scheduled task
 const taskData = {
   commands: [{
-    command: 'irrigation',
-    payload: { duration: 300 } // 5 minutes in seconds
+    index: 1,
+    value: 100,
+    priority: "NORMAL",
+    wait_for: "0s"
   }],
   schedule: '0 0 6 * * *', // Daily 6 AM
   is_active: true
