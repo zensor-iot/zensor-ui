@@ -219,76 +219,98 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
 
     // Parse cron expression to human readable format
     const parseCronExpression = (cron) => {
-        const parts = cron.split(' ')
-        if (parts.length !== 6) return 'Invalid schedule'
+        try {
+            if (!cron || typeof cron !== 'string') {
+                return 'Invalid schedule'
+            }
 
-        const [second, minute, hour, day, month, dayOfWeek] = parts
+            const parts = cron.split(' ')
+            if (parts.length !== 6) return 'Invalid schedule'
 
-        // Simple parsing for common patterns
-        if (minute === '0' && hour === '0' && day === '*' && month === '*' && dayOfWeek === '*') {
-            return 'Daily at midnight'
-        }
-        if (minute === '0' && hour === '6' && day === '*' && month === '*' && dayOfWeek === '*') {
-            return 'Daily at 6:00 AM'
-        }
-        if (minute === '0' && hour === '12' && day === '*' && month === '*' && dayOfWeek === '*') {
-            return 'Daily at 12:00 PM'
-        }
-        if (minute === '0' && hour === '18' && day === '*' && month === '*' && dayOfWeek === '*') {
-            return 'Daily at 6:00 PM'
-        }
-        if (minute === '0' && hour === '*' && day === '*' && month === '*' && dayOfWeek === '*') {
-            return 'Every hour'
-        }
-        if (minute === '0' && hour === '0' && day === '1' && month === '*' && dayOfWeek === '*') {
-            return 'Monthly on the 1st'
-        }
+            const [second, minute, hour, day, month, dayOfWeek] = parts
 
-        // Custom format
-        const hourStr = hour === '*' ? 'every hour' : `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
-        const dayStr = day === '*' ? 'every day' : `day ${day}`
-        return `${hourStr} on ${dayStr}`
+            // Simple parsing for common patterns
+            if (minute === '0' && hour === '0' && day === '*' && month === '*' && dayOfWeek === '*') {
+                return 'Daily at midnight'
+            }
+            if (minute === '0' && hour === '6' && day === '*' && month === '*' && dayOfWeek === '*') {
+                return 'Daily at 6:00 AM'
+            }
+            if (minute === '0' && hour === '12' && day === '*' && month === '*' && dayOfWeek === '*') {
+                return 'Daily at 12:00 PM'
+            }
+            if (minute === '0' && hour === '18' && day === '*' && month === '*' && dayOfWeek === '*') {
+                return 'Daily at 6:00 PM'
+            }
+            if (minute === '0' && hour === '*' && day === '*' && month === '*' && dayOfWeek === '*') {
+                return 'Every hour'
+            }
+            if (minute === '0' && hour === '0' && day === '1' && month === '*' && dayOfWeek === '*') {
+                return 'Monthly on the 1st'
+            }
+
+            // Custom format
+            const hourStr = hour === '*' ? 'every hour' : `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+            const dayStr = day === '*' ? 'every day' : `day ${day}`
+            return `${hourStr} on ${dayStr}`
+        } catch (error) {
+            console.error('Error parsing cron expression:', error, cron)
+            return 'Invalid schedule'
+        }
     }
 
     // Get duration from task commands
     const getTaskDuration = (task) => {
-        // Extract duration from the second command's wait_for field
-        if (task.commands && task.commands.length >= 2) {
-            const deactivateCommand = task.commands[1]
-            if (deactivateCommand.wait_for) {
-                // Parse wait_for format like "5m" to get minutes
-                const match = deactivateCommand.wait_for.match(/(\d+)m/)
-                if (match) {
-                    return parseInt(match[1])
+        try {
+            // Extract duration from the second command's wait_for field
+            if (task.commands && Array.isArray(task.commands) && task.commands.length >= 2) {
+                const deactivateCommand = task.commands[1]
+                if (deactivateCommand && deactivateCommand.wait_for && typeof deactivateCommand.wait_for === 'string') {
+                    // Parse wait_for format like "5m" to get minutes
+                    const match = deactivateCommand.wait_for.match(/(\d+)m/)
+                    if (match) {
+                        return parseInt(match[1])
+                    }
                 }
             }
+        } catch (error) {
+            console.error('Error parsing task duration:', error, task)
         }
         return 5 // Default duration in minutes
     }
 
     // Get human-readable schedule description
     const getScheduleDescription = (data) => {
-        const timeStr = data.time
-        const [hour, minute] = timeStr.split(':')
-        const timeDisplay = new Date(2000, 0, 1, parseInt(hour), parseInt(minute)).toLocaleTimeString([], {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        })
+        try {
+            if (!data || !data.time || typeof data.time !== 'string') {
+                return 'Invalid schedule'
+            }
 
-        switch (data.frequency) {
-            case 'daily':
-                return `Daily at ${timeDisplay}`
-            case 'weekly':
-                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-                const dayName = days[parseInt(data.dayOfWeek) - 1] || 'Sunday'
-                return `Weekly on ${dayName}s at ${timeDisplay}`
-            case 'every2days':
-                return `Every 2 days at ${timeDisplay}`
-            case 'every3days':
-                return `Every 3 days at ${timeDisplay}`
-            default:
-                return `Daily at ${timeDisplay}`
+            const timeStr = data.time
+            const [hour, minute] = timeStr.split(':')
+            const timeDisplay = new Date(2000, 0, 1, parseInt(hour), parseInt(minute)).toLocaleTimeString([], {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            })
+
+            switch (data.frequency) {
+                case 'daily':
+                    return `Daily at ${timeDisplay}`
+                case 'weekly':
+                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+                    const dayName = days[parseInt(data.dayOfWeek) - 1] || 'Sunday'
+                    return `Weekly on ${dayName}s at ${timeDisplay}`
+                case 'every2days':
+                    return `Every 2 days at ${timeDisplay}`
+                case 'every3days':
+                    return `Every 3 days at ${timeDisplay}`
+                default:
+                    return `Daily at ${timeDisplay}`
+            }
+        } catch (error) {
+            console.error('Error generating schedule description:', error, data)
+            return 'Invalid schedule'
         }
     }
 

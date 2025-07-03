@@ -101,3 +101,57 @@ restart-mock:
         echo "❌ Failed to restart mock server"
         exit 1
     fi
+
+prod:
+    #!/bin/bash
+    echo "🚀 Starting Zensor Portal UI in production mode..."
+    
+    # Set production API base URL
+    export VITE_API_BASE_URL=https://server.zensor-iot.net
+    
+    echo "🌐 Production API URL: $VITE_API_BASE_URL"
+    echo "📱 Starting React development server..."
+    echo "🔗 WebSocket will connect to: wss://server.zensor-iot.net/ws/device-messages"
+    echo ""
+    echo "💡 Press Ctrl+C to stop the server"
+    echo "⚠️  Note: This connects to the production API server"
+    echo ""
+    
+    # Start the React development server
+    npm run dev
+
+build-prod:
+    #!/bin/bash
+    echo "🏗️  Building Zensor Portal UI for production..."
+    
+    # Set production API base URL
+    export VITE_API_BASE_URL=https://server.zensor-iot.net
+    
+    echo "🌐 Production API URL: $VITE_API_BASE_URL"
+    echo "📦 Building optimized production bundle..."
+    
+    # Build the application
+    npm run build
+    
+    echo "✅ Production build completed!"
+    echo "📁 Build output: ./dist/"
+    echo "🚀 Ready for deployment"
+
+serve-prod:
+    #!/bin/bash
+    echo "🌐 Serving production build locally..."
+    
+    # Check if dist directory exists
+    if [ ! -d "./dist" ]; then
+        echo "❌ Production build not found. Run 'just build-prod' first."
+        exit 1
+    fi
+    
+    echo "📁 Serving from: ./dist/"
+    echo "🌐 Application will be available at: http://localhost:4173"
+    echo "🔗 Connecting to production API: https://server.zensor-iot.net"
+    echo ""
+    echo "💡 Press Ctrl+C to stop the server"
+    
+    # Serve the production build
+    npm run preview
