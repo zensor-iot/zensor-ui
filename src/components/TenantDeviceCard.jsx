@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { getApiUrl } from '../config/api'
-import ScheduledIrrigation from './ScheduledIrrigation'
+import ScheduledIrrigation from './ScheduledIrrigationWithNotifications'
 import { useNotification } from '../hooks/useNotification'
 
 const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
@@ -217,6 +217,9 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
 
     setIsIrrigating(true)
     try {
+      // Ensure duration is within valid range (1-60 minutes)
+      const duration = Math.max(1, Math.min(60, irrigationMinutes))
+
       const taskPayload = {
         commands: [
           {
@@ -226,10 +229,10 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
             value: 1 // Activation value
           },
           {
-            wait_for: `${irrigationMinutes}m`, // Wait for user-specified minutes
+            wait_for: `${duration}m`, // Wait for user-specified minutes (1-60 minutes)
             priority: "HIGH",
             index: 1,
-            value: 2 // Deactivation value
+            value: 0 // Deactivation value
           }
         ]
       }
@@ -251,7 +254,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
 
       // Show success notification
       showSuccess(
-        `Irrigation started for ${irrigationMinutes} minute${irrigationMinutes !== 1 ? 's' : ''}!`,
+        `Irrigation started for ${duration} minute${duration !== 1 ? 's' : ''}!`,
         'Irrigation Started',
         { duration: 5000 }
       )
@@ -300,14 +303,15 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
         console.log('Irrigation completed - relay turned off')
 
         // Show completion notification
+        const validatedDuration = Math.max(1, Math.min(60, irrigationMinutes))
         showSuccess(
-          `Irrigation completed successfully after ${irrigationMinutes} minute${irrigationMinutes !== 1 ? 's' : ''}`,
+          `Irrigation completed successfully after ${validatedDuration} minute${validatedDuration !== 1 ? 's' : ''}`,
           'Irrigation Completed',
           { duration: 4000 }
         )
       }
     }
-  }, [sensorData, isIrrigating, hasReceivedFirstMessage])
+  }, [sensorData, isIrrigating, hasReceivedFirstMessage, irrigationMinutes])
 
   return (
     <div className="tenant-device-card">

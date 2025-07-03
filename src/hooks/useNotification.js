@@ -79,9 +79,9 @@ export const useNotification = () => {
         errorTitle = null
     ) => {
         try {
-            await promise;
+            const result = await promise;
             showSuccess(successMessage, successTitle);
-            return { success: true };
+            return { success: true, data: result };
         } catch (error) {
             const errorMsg = error.message || errorMessage;
             showError(errorMsg, errorTitle);

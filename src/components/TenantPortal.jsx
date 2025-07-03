@@ -30,7 +30,7 @@ const TenantPortal = () => {
 
   // Process incoming WebSocket messages to store latest sensor data
   useEffect(() => {
-    if (lastMessage && lastMessage.type === 'device_message') {
+    if (lastMessage && lastMessage.type === 'device_state') {
       setDeviceSensorData(prev => ({
         ...prev,
         [lastMessage.device_id]: {

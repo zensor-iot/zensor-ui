@@ -112,19 +112,22 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
 
         try {
             const cronExpression = formDataToCron(formData)
+            // Ensure duration is within valid range (1-60 minutes)
+            const duration = Math.max(1, Math.min(60, formData.duration))
+
             const taskData = {
                 commands: [
                     {
                         index: 1,
                         value: 1, // Activate relay
                         priority: "NORMAL",
-                        wait_for: "0s"
+                        wait_for: "0s" // Immediate activation
                     },
                     {
                         index: 1,
                         value: 0, // Deactivate relay
                         priority: "NORMAL",
-                        wait_for: `${formData.duration}m` // Wait for user's selected duration
+                        wait_for: `${duration}m` // Wait for user's selected duration (1-60 minutes)
                     }
                 ],
                 schedule: cronExpression,
@@ -134,12 +137,27 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
             if (editingTask) {
                 await scheduledTasksApi.updateScheduledTask(tenantId, deviceId, editingTask.id, taskData)
             } else {
-                await scheduledTasksApi.createScheduledTask(tenantId, deviceId, taskData)
+                const createdTask = await scheduledTasksApi.createScheduledTask(tenantId, deviceId, taskData)
+                console.log('New task created with UUID:', createdTask?.id || createdTask?.uuid, 'API response:', createdTask)
+
+                // Add the new task to UI immediately using the returned UUID
+                if (createdTask) {
+                    const newTask = {
+                        id: createdTask.id || createdTask.uuid || Date.now(),
+                        ...taskData,
+                        schedule: cronExpression,
+                        is_active: formData.isActive
+                    }
+                    setScheduledTasks(prev => [...prev, newTask])
+                }
             }
 
-            // Reset form and reload tasks
+            // Reset form and close modal
             closeModal()
-            await loadScheduledTasks()
+            // Only reload tasks if we're editing (for new tasks, we already added them above)
+            if (editingTask) {
+                await loadScheduledTasks()
+            }
         } catch (err) {
             setError(err.message)
             console.error('Failed to save scheduled task:', err)
@@ -164,14 +182,25 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
     // Handle task toggle (active/inactive)
     const handleToggleActive = async (task) => {
         try {
+            // Ensure all wait_for values are properly formatted as strings
+            const normalizedCommands = task.commands.map(cmd => ({
+                ...cmd,
+                wait_for: typeof cmd.wait_for === 'number' ? `${cmd.wait_for}s` : String(cmd.wait_for)
+            }))
+
             const updatedTask = {
-                commands: task.commands,
+                commands: normalizedCommands,
                 schedule: task.schedule,
                 is_active: !task.is_active
             }
 
             await scheduledTasksApi.updateScheduledTask(tenantId, deviceId, task.id, updatedTask)
-            await loadScheduledTasks()
+            // Update the task's active state in the UI immediately
+            setScheduledTasks(prev => prev.map(t =>
+                t.id === task.id
+                    ? { ...t, is_active: !task.is_active }
+                    : t
+            ))
         } catch (err) {
             setError(err.message)
             console.error('Failed to toggle scheduled task:', err)
@@ -259,17 +288,31 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
         }
     }
 
-    // Get duration from task commands
+    // Get duration from task commands (always returns 1-60 minutes)
     const getTaskDuration = (task) => {
         try {
             // Extract duration from the second command's wait_for field
             if (task.commands && Array.isArray(task.commands) && task.commands.length >= 2) {
                 const deactivateCommand = task.commands[1]
                 if (deactivateCommand && deactivateCommand.wait_for && typeof deactivateCommand.wait_for === 'string') {
-                    // Parse wait_for format like "5m" to get minutes
-                    const match = deactivateCommand.wait_for.match(/(\d+)m/)
-                    if (match) {
-                        return parseInt(match[1])
+                    const waitFor = String(deactivateCommand.wait_for)
+
+                    // Parse different time units and convert to minutes
+                    const minutesMatch = waitFor.match(/(\d+)m/)
+                    const secondsMatch = waitFor.match(/(\d+)s/)
+                    const hoursMatch = waitFor.match(/(\d+)h/)
+
+                    if (minutesMatch) {
+                        const minutes = parseInt(minutesMatch[1])
+                        return Math.max(1, Math.min(60, minutes))
+                    } else if (secondsMatch) {
+                        const seconds = parseInt(secondsMatch[1])
+                        const minutes = Math.ceil(seconds / 60)
+                        return Math.max(1, Math.min(60, minutes))
+                    } else if (hoursMatch) {
+                        const hours = parseInt(hoursMatch[1])
+                        const minutes = hours * 60
+                        return Math.max(1, Math.min(60, minutes))
                     }
                 }
             }

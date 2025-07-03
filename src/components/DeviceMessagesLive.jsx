@@ -15,7 +15,7 @@ const DeviceMessagesLive = () => {
 
   // Add new messages to the list
   useEffect(() => {
-    if (lastMessage && lastMessage.type === 'device_message') {
+    if (lastMessage && lastMessage.type === 'device_state') {
       setMessages(prev => {
         const newMessages = [{
           ...lastMessage,
@@ -317,7 +317,7 @@ const DeviceMessagesLive = () => {
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .device-messages-live {
           width: 100%;
           padding: 20px;
