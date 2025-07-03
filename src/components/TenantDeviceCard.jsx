@@ -17,6 +17,7 @@ import {
 import { useState, useEffect } from 'react'
 import { getApiUrl } from '../config/api'
 import ScheduledIrrigation from './ScheduledIrrigation'
+import { useNotification } from '../hooks/useNotification'
 
 const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
   const [isEditing, setIsEditing] = useState(false)
@@ -25,6 +26,9 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
   const [irrigationMinutes, setIrrigationMinutes] = useState(5)
   const [isIrrigating, setIsIrrigating] = useState(false)
   const [hasReceivedFirstMessage, setHasReceivedFirstMessage] = useState(false)
+
+  // Notification hook
+  const { showSuccess, showError, showWarning } = useNotification()
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -174,10 +178,12 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
     try {
       await onUpdateDisplayName(device.id, editedDisplayName.trim())
       setIsEditing(false)
+      showSuccess('Device name updated successfully', 'Name Updated')
     } catch (error) {
       console.error('Failed to update display name:', error)
       // Reset to original value on error
       setEditedDisplayName(device.display_name || device.name)
+      showError('Failed to update device name', 'Update Failed')
     } finally {
       setIsUpdating(false)
     }
@@ -189,7 +195,25 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
   }
 
   const handleIrrigation = async () => {
-    if (isIrrigating || device.status === 'offline') return
+    if (isIrrigating) {
+      showWarning('Irrigation is already in progress', 'Already Active')
+      return
+    }
+
+    if (device.status === 'offline') {
+      showError('Cannot start irrigation - device is offline', 'Device Offline')
+      return
+    }
+
+    if (isRelayActive()) {
+      showWarning('Cannot start irrigation - relay is already active', 'Relay Active')
+      return
+    }
+
+    if (!hasReceivedFirstMessage) {
+      showWarning('Waiting for device data - please try again in a moment', 'Device Data Pending')
+      return
+    }
 
     setIsIrrigating(true)
     try {
@@ -225,8 +249,12 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
       const result = await response.json()
       console.log('Irrigation task created:', result)
 
-      // Show feedback to user
-      alert(`Irrigation started for ${irrigationMinutes} minutes!`)
+      // Show success notification
+      showSuccess(
+        `Irrigation started for ${irrigationMinutes} minute${irrigationMinutes !== 1 ? 's' : ''}!`,
+        'Irrigation Started',
+        { duration: 5000 }
+      )
 
       // Note: We no longer use setTimeout here
       // The irrigation state will be reset when we receive a WebSocket message
@@ -234,7 +262,11 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
 
     } catch (error) {
       console.error('Failed to start irrigation:', error)
-      alert(`Failed to start irrigation: ${error.message}`)
+      showError(
+        `Failed to start irrigation: ${error.message}`,
+        'Irrigation Failed',
+        { duration: 6000 }
+      )
       setIsIrrigating(false)
     }
   }
@@ -266,6 +298,13 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
       if (relayTurnedOff) {
         setIsIrrigating(false)
         console.log('Irrigation completed - relay turned off')
+
+        // Show completion notification
+        showSuccess(
+          `Irrigation completed successfully after ${irrigationMinutes} minute${irrigationMinutes !== 1 ? 's' : ''}`,
+          'Irrigation Completed',
+          { duration: 4000 }
+        )
       }
     }
   }, [sensorData, isIrrigating, hasReceivedFirstMessage])

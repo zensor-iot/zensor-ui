@@ -144,6 +144,17 @@ Zensor Portal UI is a React-based IoT device management interface for the Zensor
 - Handle different environments (dev/prod)
 - Use proper error handling for API calls
 
+### Notification Requirements
+- **MANDATORY**: After each API call, show a notification based on server response
+- Use `useNotification` hook for all API feedback
+- Show success notifications for successful operations (2xx status codes)
+- Show error notifications for failed operations (4xx/5xx status codes)
+- Show warning notifications for partial success or important warnings
+- Include descriptive titles and messages in notifications
+- Use appropriate notification durations (4-6 seconds for errors, 3-4 seconds for success)
+- Never use browser alerts - always use the notification system
+- For API operations, use `showApiNotification` helper when possible
+
 ## Performance Considerations
 
 ### Bundle Optimization
@@ -252,6 +263,50 @@ try {
 } catch (error) {
   setError(error.message);
 }
+```
+
+### API Calls with Notifications
+```jsx
+// Import notification hook
+import { useNotification } from '../hooks/useNotification';
+
+// In component
+const { showSuccess, showError, showApiNotification } = useNotification();
+
+// Method 1: Manual notification handling
+const handleApiCall = async () => {
+  try {
+    const response = await fetch('/api/endpoint');
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const data = await response.json();
+    
+    showSuccess('Operation completed successfully', 'Success', { duration: 4000 });
+    return data;
+  } catch (error) {
+    showError(`Operation failed: ${error.message}`, 'Error', { duration: 6000 });
+    throw error;
+  }
+};
+
+// Method 2: Using showApiNotification helper
+const handleApiCallWithHelper = async () => {
+  const result = await showApiNotification(
+    fetch('/api/endpoint').then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }),
+    'Operation completed successfully',
+    'Operation failed',
+    'Success',
+    'Error'
+  );
+  
+  if (result.success) {
+    // Handle success
+  }
+};
 ```
 
 ## Project-Specific Notes
