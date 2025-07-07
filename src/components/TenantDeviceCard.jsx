@@ -254,8 +254,8 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
 
       // Show success notification
       showSuccess(
-        `Irrigation started for ${duration} minute${duration !== 1 ? 's' : ''}!`,
-        'Irrigation Started',
+        `Irrigation queued for ${duration} minute${duration !== 1 ? 's' : ''}!`,
+        'Irrigation Queued',
         { duration: 5000 }
       )
 
