@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react'
 import {
   Cpu,
   Wifi,
@@ -12,10 +13,10 @@ import {
   Thermometer,
   Gauge,
   BarChart3,
-  Power
+  Power,
+  Square
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
-import { getApiUrl } from '../config/api'
+import { getApiUrl, deviceCommandsApi } from '../config/api'
 import ScheduledIrrigation from './ScheduledIrrigationWithNotifications'
 import { useNotification } from '../hooks/useNotification'
 import GrafanaVisualization from './GrafanaVisualization'
@@ -276,6 +277,47 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
     }
   }
 
+  const handleStopIrrigation = async () => {
+    if (!isRelayActive()) {
+      showWarning('Irrigation is not active', 'Irrigation Not Active')
+      return
+    }
+
+    if (device.status === 'offline') {
+      showError('Cannot stop irrigation - device is offline', 'Device Offline')
+      return
+    }
+
+    if (!hasReceivedFirstMessage) {
+      showWarning('Waiting for device data - please try again in a moment', 'Device Data Pending')
+      return
+    }
+
+    try {
+      const commandData = {
+        sequence: [
+          {
+            index: 1,
+            value: 0,
+            priority: "HIGH"
+          }
+        ]
+      }
+
+      const response = await deviceCommandsApi.sendCommand(device.id, commandData)
+      console.log('Stop irrigation command sent:', response)
+
+      showSuccess('Stop irrigation command sent successfully', 'Command Sent', { duration: 4000 })
+    } catch (error) {
+      console.error('Failed to stop irrigation:', error)
+      showError(
+        `Failed to stop irrigation: ${error.message}`,
+        'Command Failed',
+        { duration: 6000 }
+      )
+    }
+  }
+
   // Monitor sensor data changes to reset irrigation state when relay turns off
   useEffect(() => {
     // Set flag when we receive first message
@@ -468,14 +510,27 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
             </div>
           </div>
 
-          <button
-            className={`irrigation-btn ${isIrrigating ? 'active' : ''}`}
-            onClick={handleIrrigation}
-            disabled={isIrrigating || device.status === 'offline' || isRelayActive() || !hasReceivedFirstMessage}
-          >
-            <Droplets size={16} />
-            {isIrrigating ? `Irrigating (${irrigationMinutes}m)` : 'Start Irrigation'}
-          </button>
+          <div className="irrigation-buttons">
+            <button
+              className={`irrigation-btn ${isIrrigating ? 'active' : ''}`}
+              onClick={handleIrrigation}
+              disabled={isIrrigating || device.status === 'offline' || isRelayActive() || !hasReceivedFirstMessage}
+            >
+              <Droplets size={16} />
+              {isIrrigating ? `Irrigating (${irrigationMinutes}m)` : 'Start Irrigation'}
+            </button>
+
+            {isRelayActive() && (
+              <button
+                className="irrigation-btn stop-btn"
+                onClick={handleStopIrrigation}
+                disabled={device.status === 'offline' || !hasReceivedFirstMessage}
+              >
+                <Square size={16} />
+                Stop Irrigation
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

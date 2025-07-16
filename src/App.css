@@ -1351,6 +1351,12 @@ body {
   gap: 0.75rem;
 }
 
+.irrigation-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .duration-control {
   display: flex;
   flex-direction: column;
@@ -1452,6 +1458,16 @@ body {
   background-color: #059669;
 }
 
+.irrigation-btn.stop-btn {
+  background-color: var(--color-error);
+}
+
+.irrigation-btn.stop-btn:hover:not(:disabled) {
+  background-color: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
 @keyframes pulse {
 
   0%,
@@ -1480,9 +1496,20 @@ body {
     width: 100%;
   }
 
+  .irrigation-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
   .irrigation-btn {
     width: 100%;
     padding: 0.875rem;
+    margin-left: 0;
+  }
+
+  .irrigation-btn.stop-btn {
+    margin-top: 0;
+    margin-left: 0;
   }
 }
 

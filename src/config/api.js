@@ -135,4 +135,25 @@ export const scheduledTasksApi = {
     }
 }
 
+// Device Commands API functions
+export const deviceCommandsApi = {
+    // Send a command to a device
+    async sendCommand(deviceId, commandData) {
+        const url = getApiUrl(`/v1/devices/${deviceId}/commands`)
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(commandData)
+        })
+
+        if (!response.ok) {
+            throw new Error(`Failed to send command: ${response.status}`)
+        }
+
+        return response.json()
+    }
+}
+
 export default config 
