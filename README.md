@@ -113,7 +113,7 @@ To enable Grafana integration:
 
 #### Authentication Options:
 - **API Key**: Create a Grafana API key with "Viewer" role and set `VITE_GRAFANA_API_KEY`
-- **Anonymous Access**: Configure Grafana to allow anonymous access (see `GRAFANA_AUTH_CONFIG.md`)
+- **Anonymous Access**: Configure Grafana to allow anonymous access (see `docs/GRAFANA_AUTH_CONFIG.md`)
 - **Session-based**: Implement backend authentication proxy
 
 ## 🎨 Design System

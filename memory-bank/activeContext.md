@@ -52,18 +52,31 @@
 ## Current Work Focus
 
 ### Recent Major Changes
-1. **Full Width Layout**: Updated CSS to use 100% width across all components
+1. **Documentation Organization**: Moved all documentation files to `./docs` folder
+   - Moved Grafana documentation (CONFIG, AUTH_CONFIG, TROUBLESHOOTING)
+   - Moved project documentation (CONFIG, NOTIFICATION_SYSTEM, MOCK_SERVER)
+   - Created comprehensive docs/README.md with navigation
+   - **Rule**: All new documentation files must be created within `./docs` folder
+
+2. **Grafana Integration**: Successfully implemented embedded Grafana visualizations
+   - Added GrafanaVisualization component with time range selector
+   - Implemented iframe embedding with authentication support
+   - Added time range dropdown (1h, 6h, 24h) with 6h default
+   - Resolved authentication and organization issues
+   - Removed loading states for direct iframe display
+
+3. **Full Width Layout**: Updated CSS to use 100% width across all components
    - Removed `max-width: 1200px` constraints from main content, header, and components
    - Updated body and root element styles to use full width
    - Fixed conflicting styles from `index.css` that were limiting width
 
-2. **Relay Control Enhancement**: Implemented comprehensive relay state management
+4. **Relay Control Enhancement**: Implemented comprehensive relay state management
    - Added "On"/"Off" display for relay values in both live messages and portal views
    - Implemented irrigation button safety controls (disabled when relay is active)
    - Added WebSocket-based irrigation completion detection
    - Enhanced button state management to wait for first WebSocket message
 
-3. **WebSocket Integration**: Improved real-time data handling
+5. **WebSocket Integration**: Improved real-time data handling
    - Fixed Content Security Policy to allow WebSocket connections
    - Enhanced relay value display with visual indicators (green for "On", red for "Off")
    - Added Power icon for relay sensors

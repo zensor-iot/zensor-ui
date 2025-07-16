@@ -128,6 +128,13 @@ Zensor Portal UI is a React-based IoT device management interface for the Zensor
 - Keep components focused and single-purpose
 - Separate concerns (UI, logic, styling)
 
+### Documentation Organization
+- **MANDATORY**: All documentation files must be placed in `./docs` folder
+- Create comprehensive docs/README.md with navigation and categorization
+- Organize documentation by type (Configuration, Development, API, Integration)
+- Use consistent Markdown formatting and cross-referencing
+- Never create documentation files in the root directory
+
 ## API Integration Patterns
 
 ### Endpoints

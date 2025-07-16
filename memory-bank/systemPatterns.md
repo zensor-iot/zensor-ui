@@ -139,6 +139,20 @@ TenantList → TenantDevices → TenantPortal → TenantDeviceCard
 - **Lazy Loading**: Loading components on demand
 - **WebSocket Efficiency**: Efficient message processing
 
+## Documentation Patterns
+
+### File Organization
+- **Documentation Location**: All documentation files must be placed in `./docs` folder
+- **README Structure**: Main README.md in root, detailed docs in ./docs
+- **Navigation**: docs/README.md serves as documentation index
+- **Categorization**: Documentation organized by type (Configuration, Development, API, etc.)
+
+### Documentation Standards
+- **Markdown Format**: All documentation in Markdown format
+- **Consistent Structure**: Standardized headers and formatting
+- **Cross-references**: Proper linking between related documents
+- **Code Examples**: Inline code examples with proper syntax highlighting
+
 ## Security Patterns
 
 ### Content Security Policy
