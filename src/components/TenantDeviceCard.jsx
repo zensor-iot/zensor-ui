@@ -18,6 +18,7 @@ import { useState, useEffect } from 'react'
 import { getApiUrl } from '../config/api'
 import ScheduledIrrigation from './ScheduledIrrigationWithNotifications'
 import { useNotification } from '../hooks/useNotification'
+import GrafanaVisualization from './GrafanaVisualization'
 
 const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
   const [isEditing, setIsEditing] = useState(false)
@@ -26,6 +27,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
   const [irrigationMinutes, setIrrigationMinutes] = useState(5)
   const [isIrrigating, setIsIrrigating] = useState(false)
   const [hasReceivedFirstMessage, setHasReceivedFirstMessage] = useState(false)
+  const [showGrafanaModal, setShowGrafanaModal] = useState(false)
 
   // Notification hook
   const { showSuccess, showError, showWarning } = useNotification()
@@ -481,6 +483,25 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
       <ScheduledIrrigation
         tenantId={device.tenant_id}
         deviceId={device.id}
+        deviceName={device.display_name || device.name}
+      />
+
+      {/* Analytics Button */}
+      <div className="device-actions">
+        <button
+          className="action-btn secondary"
+          onClick={() => setShowGrafanaModal(true)}
+          title="View Sensor Data Visualization"
+        >
+          <BarChart3 size={16} />
+          Analytics
+        </button>
+      </div>
+
+      {/* Grafana Visualization Modal */}
+      <GrafanaVisualization
+        isOpen={showGrafanaModal}
+        onClose={() => setShowGrafanaModal(false)}
         deviceName={device.display_name || device.name}
       />
     </div>

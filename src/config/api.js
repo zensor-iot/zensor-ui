@@ -3,6 +3,12 @@ const config = {
     // Backend API base URL
     apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
 
+    // Grafana base URL
+    grafanaBaseUrl: import.meta.env.VITE_GRAFANA_BASE_URL || 'http://cardamomo.zensor-iot.net',
+
+    // Grafana API Key for authentication
+    grafanaApiKey: import.meta.env.VITE_GRAFANA_API_KEY || '',
+
     // WebSocket base URL (derived from API base URL)
     get wsBaseUrl() {
         const url = new URL(this.apiBaseUrl)

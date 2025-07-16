@@ -19,6 +19,7 @@ A modern React-based user interface for managing IoT tenants and their device fl
   - Click-to-copy functionality for technical details
 - **Real-time Updates**: Live data fetching from the backend API
 - **Error Handling**: Graceful error states with retry functionality
+- **Grafana Analytics**: Embedded Grafana visualizations for sensor data analysis
 
 ### User Experience
 - **Modern Design**: Clean, professional interface with consistent styling
@@ -41,7 +42,15 @@ src/
 ├── components/
 │   ├── TenantList.jsx       # Tenant overview page
 │   ├── TenantDevices.jsx    # Tenant device management page
-│   └── DeviceCard.jsx       # Reusable device card component
+│   ├── DeviceCard.jsx       # Reusable device card component
+│   ├── TenantDeviceCard.jsx # Enhanced device card with irrigation controls
+│   ├── GrafanaVisualization.jsx # Grafana iframe modal component
+│   └── ScheduledIrrigation.jsx  # Scheduled irrigation management
+├── config/
+│   └── api.js               # API configuration and endpoints
+├── hooks/
+│   ├── useNotification.js   # Notification system hook
+│   └── useWebSocket.js      # WebSocket connection hook
 ├── App.jsx                  # Main application component with routing
 ├── App.css                  # Global styles and component styling
 ├── main.jsx                 # Application entry point
@@ -85,6 +94,27 @@ The UI integrates with the following Zensor Server endpoints:
 
 ### API Configuration
 The base URL is configured for local development (`http://localhost:3000`). Update the fetch URLs in components for different environments.
+
+### Grafana Integration
+The application includes embedded Grafana visualizations for sensor data analysis:
+
+- **Environment Variables**: 
+  - `VITE_GRAFANA_BASE_URL`: Grafana server URL (default: `http://cardamomo.zensor-iot.net`)
+  - `VITE_GRAFANA_API_KEY`: API key for authentication (optional)
+- **Dashboard**: Uses dashboard ID `fes28u6b3f6yof` with panel ID `1`
+- **Device Variable**: Automatically sets `var-device_name` parameter from device name
+- **Time Range**: Defaults to last 24 hours, configurable in the component
+
+To enable Grafana integration:
+1. Ensure Grafana is running and accessible
+2. Set the `VITE_GRAFANA_BASE_URL` environment variable
+3. **For authentication**: Create an API key in Grafana and set `VITE_GRAFANA_API_KEY`
+4. Verify the dashboard and panel IDs match your Grafana setup
+
+#### Authentication Options:
+- **API Key**: Create a Grafana API key with "Viewer" role and set `VITE_GRAFANA_API_KEY`
+- **Anonymous Access**: Configure Grafana to allow anonymous access (see `GRAFANA_AUTH_CONFIG.md`)
+- **Session-based**: Implement backend authentication proxy
 
 ## 🎨 Design System
 

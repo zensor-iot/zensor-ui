@@ -1,6 +1,9 @@
-import { Cpu, Signal, Wifi, Key, Circle, Clock } from 'lucide-react'
+import { Cpu, Signal, Wifi, Key, Circle, Clock, BarChart3 } from 'lucide-react'
+import { useState } from 'react'
+import GrafanaVisualization from './GrafanaVisualization'
 
 const DeviceCard = ({ device, onViewDetails, onSendCommand }) => {
+  const [showGrafanaModal, setShowGrafanaModal] = useState(false)
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text)
   }
@@ -15,17 +18,17 @@ const DeviceCard = ({ device, onViewDetails, onSendCommand }) => {
 
   const formatLastSeen = (date) => {
     if (!date) return 'Never'
-    
+
     const lastSeenDate = typeof date === 'string' ? new Date(date) : date
     const now = new Date()
     const diffInMinutes = Math.floor((now - lastSeenDate) / (1000 * 60))
-    
+
     if (diffInMinutes < 1) return 'Just now'
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`
-    
+
     const diffInHours = Math.floor(diffInMinutes / 60)
     if (diffInHours < 24) return `${diffInHours}h ago`
-    
+
     const diffInDays = Math.floor(diffInHours / 24)
     return `${diffInDays}d ago`
   }
@@ -35,7 +38,7 @@ const DeviceCard = ({ device, onViewDetails, onSendCommand }) => {
       <div className="device-card-header">
         <div className="device-icon">
           <Cpu size={24} />
-          <div 
+          <div
             className="status-indicator"
             style={{ backgroundColor: getStatusColor(device.status) }}
           />
@@ -44,8 +47,8 @@ const DeviceCard = ({ device, onViewDetails, onSendCommand }) => {
           <h4 className="device-name">{device.display_name || device.name}</h4>
           <p className="device-id">ID: {device.id}</p>
           <p className="device-status">
-            <Circle 
-              size={8} 
+            <Circle
+              size={8}
               fill={getStatusColor(device.status)}
               color={getStatusColor(device.status)}
             />
@@ -66,8 +69,8 @@ const DeviceCard = ({ device, onViewDetails, onSendCommand }) => {
         <div className="detail-row">
           <Signal className="detail-icon" />
           <span className="detail-label">App EUI:</span>
-          <code 
-            className="detail-value clickable" 
+          <code
+            className="detail-value clickable"
             onClick={() => copyToClipboard(device.app_eui)}
             title="Click to copy"
           >
@@ -78,7 +81,7 @@ const DeviceCard = ({ device, onViewDetails, onSendCommand }) => {
         <div className="detail-row">
           <Wifi className="detail-icon" />
           <span className="detail-label">Dev EUI:</span>
-          <code 
+          <code
             className="detail-value clickable"
             onClick={() => copyToClipboard(device.dev_eui)}
             title="Click to copy"
@@ -90,7 +93,7 @@ const DeviceCard = ({ device, onViewDetails, onSendCommand }) => {
         <div className="detail-row">
           <Key className="detail-icon" />
           <span className="detail-label">App Key:</span>
-          <code 
+          <code
             className="detail-value clickable"
             onClick={() => copyToClipboard(device.app_key)}
             title="Click to copy"
@@ -111,19 +114,34 @@ const DeviceCard = ({ device, onViewDetails, onSendCommand }) => {
       </div>
 
       <div className="device-actions">
-        <button 
+        <button
           className="action-button primary"
           onClick={() => onViewDetails && onViewDetails(device)}
         >
           View Details
         </button>
-        <button 
+        <button
           className="action-button secondary"
           onClick={() => onSendCommand && onSendCommand(device)}
         >
           Send Command
         </button>
+        <button
+          className="action-button secondary"
+          onClick={() => setShowGrafanaModal(true)}
+          title="View Sensor Data Visualization"
+        >
+          <BarChart3 size={16} />
+          Analytics
+        </button>
       </div>
+
+      {/* Grafana Visualization Modal */}
+      <GrafanaVisualization
+        isOpen={showGrafanaModal}
+        onClose={() => setShowGrafanaModal(false)}
+        deviceName={device.display_name || device.name}
+      />
     </div>
   )
 }
