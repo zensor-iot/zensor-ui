@@ -99,7 +99,7 @@ The base URL is configured for local development (`http://localhost:3000`). Upda
 The application includes embedded Grafana visualizations for sensor data analysis:
 
 - **Environment Variables**: 
-  - `VITE_GRAFANA_BASE_URL`: Grafana server URL (default: `http://cardamomo.zensor-iot.net`)
+  - `VITE_GRAFANA_BASE_URL`: Grafana server URL (default: `https://cardamomo.zensor-iot.net`)
   - `VITE_GRAFANA_API_KEY`: API key for authentication (optional)
 - **Dashboard**: Uses dashboard ID `fes28u6b3f6yof` with panel ID `1`
 - **Device Variable**: Automatically sets `var-device_name` parameter from device name

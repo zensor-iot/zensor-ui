@@ -49,7 +49,7 @@ In Grafana UI:
 Modify the Grafana URL to include the API key:
 
 ```
-http://cardamomo.zensor-iot.net/grafana/d-solo/fes28u6b3f6yof/sensor-data?orgId=1&from=${from}&to=${to}&timezone=browser&var-device_name=${deviceName}&panelId=1&__feature.dashboardSceneSolo&authToken=YOUR_API_KEY
+https://cardamomo.zensor-iot.net/grafana/d-solo/fes28u6b3f6yof/sensor-data?orgId=1&from=${from}&to=${to}&timezone=browser&var-device_name=${deviceName}&panelId=1&__feature.dashboardSceneSolo&authToken=YOUR_API_KEY
 ```
 
 ## Solution 3: Session-Based Authentication
@@ -60,7 +60,7 @@ Create a login endpoint that sets Grafana session cookies:
 ```javascript
 // In your backend API
 const loginToGrafana = async (username, password) => {
-  const response = await fetch('http://cardamomo.zensor-iot.net/grafana/login', {
+  const response = await fetch('https://cardamomo.zensor-iot.net/grafana/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user: username, password: password }),
@@ -82,7 +82,7 @@ Create a backend endpoint that proxies Grafana requests:
 // Backend proxy endpoint
 app.get('/api/grafana-proxy/:dashboardId', async (req, res) => {
   const { dashboardId } = req.params;
-  const grafanaUrl = `http://cardamomo.zensor-iot.net/grafana/d-solo/${dashboardId}/sensor-data?${req.query}`;
+  const grafanaUrl = `https://cardamomo.zensor-iot.net/grafana/d-solo/${dashboardId}/sensor-data?${req.query}`;
   
   // Add authentication headers
   const response = await fetch(grafanaUrl, {

@@ -4,7 +4,7 @@ const config = {
     apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
 
     // Grafana base URL
-    grafanaBaseUrl: import.meta.env.VITE_GRAFANA_BASE_URL || 'http://cardamomo.zensor-iot.net',
+    grafanaBaseUrl: import.meta.env.VITE_GRAFANA_BASE_URL || 'https://cardamomo.zensor-iot.net',
 
     // Grafana API Key for authentication
     grafanaApiKey: import.meta.env.VITE_GRAFANA_API_KEY || '',

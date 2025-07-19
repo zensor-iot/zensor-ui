@@ -1,6 +1,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 ENV VITE_API_BASE_URL=https://server.zensor-iot.net
+ENV VITE_GRAFANA_BASE_URL=https://cardamomo.zensor-iot.net
 COPY package*.json ./
 RUN npm ci
 COPY . .
