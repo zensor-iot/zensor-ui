@@ -342,8 +342,8 @@ const ScheduledIrrigationWithNotifications = ({ tenantId, deviceId, deviceName }
             const time = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
 
             if (dayOfWeek !== '*') {
-                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-                const dayIndex = parseInt(dayOfWeek) - 1
+                const days = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                const dayIndex = parseInt(dayOfWeek)
                 const dayName = days[dayIndex] || 'Sun'
                 return `Weekly on ${dayName} at ${time}`
             } else if (day.startsWith('*/')) {
@@ -403,8 +403,8 @@ const ScheduledIrrigationWithNotifications = ({ tenantId, deviceId, deviceName }
             case 'daily':
                 return `Daily at ${time} for ${duration} minutes`
             case 'weekly':
-                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-                const dayName = days[parseInt(data.dayOfWeek) - 1]
+                const days = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                const dayName = days[parseInt(data.dayOfWeek)]
                 return `Weekly on ${dayName} at ${time} for ${duration} minutes`
             case 'every2days':
                 return `Every 2 days at ${time} for ${duration} minutes`

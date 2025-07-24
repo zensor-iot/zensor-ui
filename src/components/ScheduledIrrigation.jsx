@@ -341,8 +341,8 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
                 case 'daily':
                     return `Daily at ${timeDisplay}`
                 case 'weekly':
-                    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-                    const dayName = days[parseInt(data.dayOfWeek) - 1] || 'Sunday'
+                    const days = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                    const dayName = days[parseInt(data.dayOfWeek)] || 'Sunday'
                     return `Weekly on ${dayName}s at ${timeDisplay}`
                 case 'every2days':
                     return `Every 2 days at ${timeDisplay}`
