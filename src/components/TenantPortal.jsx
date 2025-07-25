@@ -51,7 +51,7 @@ const TenantPortal = () => {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(getApiUrl(`/v1/tenants/${tenantId}/devices`))
+        const response = await fetch(getApiUrl(`/tenants/${tenantId}/devices`))
         if (response.ok) {
           const data = await response.json()
           const updatedDevices = (data.data || []).map(device => ({
@@ -106,7 +106,7 @@ const TenantPortal = () => {
 
   const fetchTenantInfo = async () => {
     try {
-      const response = await fetch(getApiUrl(`/v1/tenants/${tenantId}`))
+      const response = await fetch(getApiUrl(`/tenants/${tenantId}`))
       if (!response.ok) {
         throw new Error(`Failed to fetch tenant information`)
       }
@@ -120,7 +120,7 @@ const TenantPortal = () => {
   const fetchTenantDevices = async () => {
     try {
       setLoading(true)
-      const response = await fetch(getApiUrl(`/v1/tenants/${tenantId}/devices`))
+      const response = await fetch(getApiUrl(`/tenants/${tenantId}/devices`))
       if (!response.ok) {
         throw new Error(`Failed to fetch devices`)
       }
@@ -147,7 +147,7 @@ const TenantPortal = () => {
 
   const handleUpdateDisplayName = async (deviceId, displayName) => {
     try {
-      const response = await fetch(getApiUrl(`/v1/devices/${deviceId}`), {
+      const response = await fetch(getApiUrl(`/devices/${deviceId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

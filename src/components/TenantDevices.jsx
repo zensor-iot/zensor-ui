@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { 
-  ArrowLeft, 
-  Cpu, 
+import {
+  ArrowLeft,
+  Cpu,
   Building,
   Loader2,
   AlertCircle,
@@ -29,7 +29,7 @@ const TenantDevices = () => {
 
   const fetchTenantInfo = async () => {
     try {
-      const response = await fetch(getApiUrl(`/v1/tenants/${tenantId}`))
+      const response = await fetch(getApiUrl(`/tenants/${tenantId}`))
       if (!response.ok) {
         throw new Error(`Failed to fetch tenant: ${response.statusText}`)
       }
@@ -43,7 +43,7 @@ const TenantDevices = () => {
   const fetchTenantDevices = async () => {
     try {
       setLoading(true)
-      const response = await fetch(getApiUrl(`/v1/tenants/${tenantId}/devices`))
+      const response = await fetch(getApiUrl(`/tenants/${tenantId}/devices`))
       if (!response.ok) {
         throw new Error(`Failed to fetch devices: ${response.statusText}`)
       }
@@ -107,7 +107,7 @@ const TenantDevices = () => {
             Back to Tenants
           </Link>
         </div>
-        
+
         {tenant && (
           <div className="tenant-header">
             <div className="tenant-header-info">
@@ -139,7 +139,7 @@ const TenantDevices = () => {
             <p className="stat-number">{devices.length}</p>
           </div>
         </div>
-        
+
         <div className="stat-card online">
           <div className="stat-icon">
             <Activity className="icon" />
@@ -149,7 +149,7 @@ const TenantDevices = () => {
             <p className="stat-number">{devices.filter(d => d.status === 'online').length}</p>
           </div>
         </div>
-        
+
         <div className="stat-card offline">
           <div className="stat-icon">
             <Circle className="icon" />
@@ -192,7 +192,7 @@ const TenantDevices = () => {
           ) : (
             <div className="devices-grid">
               {devices.map((device) => (
-                <DeviceCard 
+                <DeviceCard
                   key={device.id}
                   device={device}
                   onViewDetails={handleViewDetails}

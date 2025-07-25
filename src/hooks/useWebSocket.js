@@ -47,10 +47,29 @@ const useWebSocket = (url) => {
 
             ws.onmessage = (event) => {
                 try {
-                    const data = JSON.parse(event.data);
+                    // Handle different data types (string, Blob, ArrayBuffer)
+                    let messageData = event.data;
+
+                    if (messageData instanceof Blob) {
+                        messageData.text().then(text => {
+                            try {
+                                const data = JSON.parse(text);
+                                setLastMessage(data);
+                            } catch (err) {
+                                console.error('Failed to parse Blob WebSocket message:', err);
+                            }
+                        });
+                        return;
+                    }
+
+                    if (messageData instanceof ArrayBuffer) {
+                        messageData = new TextDecoder().decode(messageData);
+                    }
+
+                    const data = JSON.parse(messageData);
                     setLastMessage(data);
                 } catch (err) {
-                    console.error('Failed to parse WebSocket message:', err);
+                    console.error('Failed to parse WebSocket message:', err, 'Data type:', typeof event.data, 'Data:', event.data);
                 }
             };
 

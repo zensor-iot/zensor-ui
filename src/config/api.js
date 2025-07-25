@@ -1,27 +1,31 @@
-// API Configuration
+// API Configuration for Express.js proxy
 const config = {
-    // Backend API base URL
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+    // Local API base URL (proxied through Express server)
+    apiBaseUrl: typeof window !== 'undefined'
+        ? `${window.location.protocol}//${window.location.host}/api`
+        : '/api',
 
     // Grafana base URL
     grafanaBaseUrl: import.meta.env.VITE_GRAFANA_BASE_URL || 'https://cardamomo.zensor-iot.net',
 
-    // Grafana API Key for authentication
+    // Grafana API Key for authentication (still client-side for Grafana)
     grafanaApiKey: import.meta.env.VITE_GRAFANA_API_KEY || '',
 
-    // WebSocket base URL (derived from API base URL)
+    // WebSocket base URL (proxied through Express server)
     get wsBaseUrl() {
-        const url = new URL(this.apiBaseUrl)
-        const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-        return `${wsProtocol}//${url.host}`
+        if (typeof window !== 'undefined') {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+            return `${wsProtocol}//${window.location.host}`
+        }
+        return 'ws://localhost:5173'
     },
 
-    // API endpoints
+    // API endpoints (now relative to proxy)
     endpoints: {
-        tenants: '/v1/tenants',
-        devices: '/v1/devices',
+        tenants: '/tenants',
+        devices: '/devices',
         websocket: '/ws/device-messages',
-        scheduledTasks: '/v1/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks'
+        scheduledTasks: '/tenants/{tenant_id}/devices/{device_id}/scheduled-tasks'
     }
 }
 
@@ -139,7 +143,7 @@ export const scheduledTasksApi = {
 export const deviceCommandsApi = {
     // Send a command to a device
     async sendCommand(deviceId, commandData) {
-        const url = getApiUrl(`/v1/devices/${deviceId}/commands`)
+        const url = getApiUrl(`/devices/${deviceId}/commands`)
         const response = await fetch(url, {
             method: 'POST',
             headers: {

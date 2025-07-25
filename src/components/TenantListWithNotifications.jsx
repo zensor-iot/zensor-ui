@@ -19,7 +19,7 @@ const TenantListWithNotifications = () => {
             setLoading(true)
             setError(null)
 
-            const response = await fetch(getApiUrl('/v1/tenants'))
+            const response = await fetch(getApiUrl('/tenants'))
             if (!response.ok) {
                 throw new Error(`Failed to fetch tenants: ${response.status}`)
             }

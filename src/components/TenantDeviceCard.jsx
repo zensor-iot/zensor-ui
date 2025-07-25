@@ -240,7 +240,7 @@ const TenantDeviceCard = ({ device, sensorData, onUpdateDisplayName }) => {
         ]
       }
 
-      const response = await fetch(getApiUrl(`/v1/devices/${device.id}/tasks`), {
+      const response = await fetch(getApiUrl(`/devices/${device.id}/tasks`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
