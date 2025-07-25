@@ -12,8 +12,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application for production
-RUN npm run build
+# Build only the client for production (skip SSR build to avoid module resolution issues)
+RUN npm run build:client
 
 # Production stage  
 FROM node:20-alpine AS production
