@@ -18,6 +18,19 @@ async function createSimpleServer() {
     // Parse JSON bodies
     app.use(express.json())
 
+    // User info endpoint - returns user data from authentication headers
+    app.get('/api/user', (req, res) => {
+        const userInfo = {
+            user: req.headers['x-user'] || null,
+            email: req.headers['x-user-email'] || null,
+            name: req.headers['x-user-name'] || null
+        }
+
+        console.log('👤 User info requested:', userInfo)
+
+        res.json(userInfo)
+    })
+
     // Serve static files
     app.use(express.static(resolve(__dirname, '../dist/client')))
 

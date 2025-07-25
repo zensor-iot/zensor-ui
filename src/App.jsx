@@ -4,6 +4,7 @@ import TenantList from './components/TenantList'
 import TenantDevices from './components/TenantDevices'
 import TenantPortal from './components/TenantPortal'
 import DeviceMessagesLive from './components/DeviceMessagesLive'
+import UserInfo from './components/UserInfo'
 import { NotificationProvider } from './components/NotificationSystem'
 import './App.css'
 
@@ -17,20 +18,23 @@ function App() {
         {!isPortalPage && (
           <header className="app-header">
             <div className="header-content">
-              <div className="logo">
-                <Activity className="logo-icon" />
-                <h1>Zensor Portal</h1>
+              <div className="header-left">
+                <div className="logo">
+                  <Activity className="logo-icon" />
+                  <h1>Zensor Portal</h1>
+                </div>
+                <nav className="nav">
+                  <Link to="/" className="nav-link">
+                    <Building size={20} />
+                    Tenants
+                  </Link>
+                  <Link to="/live-messages" className="nav-link">
+                    <Radio size={20} />
+                    Live Messages
+                  </Link>
+                </nav>
               </div>
-              <nav className="nav">
-                <Link to="/" className="nav-link">
-                  <Building size={20} />
-                  Tenants
-                </Link>
-                <Link to="/live-messages" className="nav-link">
-                  <Radio size={20} />
-                  Live Messages
-                </Link>
-              </nav>
+              <UserInfo />
             </div>
           </header>
         )}
