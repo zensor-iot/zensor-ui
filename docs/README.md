@@ -13,6 +13,7 @@ This folder contains documentation for the Zensor Portal UI project.
 
 ### API Documentation
 - **`openapi.yaml`** - OpenAPI specification for the backend API
+- **`HEADER_PROPAGATION.md`** - Header propagation system for user authentication
 
 ### Grafana Integration
 - **`GRAFANA_CONFIG.md`** - Basic Grafana configuration for iframe embedding
@@ -24,6 +25,7 @@ This folder contains documentation for the Zensor Portal UI project.
 - [Project Configuration](./CONFIG.md)
 - [Mock Server Setup](./MOCK_SERVER.md)
 - [Notification System](./NOTIFICATION_SYSTEM.md)
+- [Header Propagation System](./HEADER_PROPAGATION.md)
 - [Grafana Configuration Guide](./GRAFANA_CONFIG.md)
 - [Grafana Authentication Setup](./GRAFANA_AUTH_CONFIG.md)
 - [Grafana Troubleshooting](./GRAFANA_TROUBLESHOOTING.md)
