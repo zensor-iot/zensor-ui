@@ -38,9 +38,6 @@ export function setupApiProxy(app) {
             if (req.headers.authorization) {
                 userHeaders['Authorization'] = req.headers.authorization
             }
-            if (req.headers['x-api-key']) {
-                userHeaders['X-API-Key'] = req.headers['x-api-key']
-            }
             if (req.headers['x-user-id']) {
                 userHeaders['X-User-ID'] = req.headers['x-user-id']
             }
@@ -65,21 +62,21 @@ export function setupApiProxy(app) {
 
             // Legacy headers (for backward compatibility)
             if (req.headers['remote-user']) {
-                userHeaders['Remote-User'] = req.headers['remote-user']
+                userHeaders['X-User-ID'] = req.headers['remote-user']
             }
             if (req.headers['remote-name']) {
-                userHeaders['Remote-Name'] = req.headers['remote-name']
+                userHeaders['X-User-Name'] = req.headers['remote-name']
             }
             if (req.headers['remote-email']) {
-                userHeaders['Remote-Email'] = req.headers['remote-email']
+                userHeaders['X-User-Email'] = req.headers['remote-email']
             }
 
             // Merge user headers with existing headers
             Object.assign(headers, userHeaders)
 
-            // Inject server API key if no user authorization is provided
-            if (!headers.authorization && !headers['x-api-key'] && ZENSOR_API_KEY) {
-                headers['X-API-Key'] = ZENSOR_API_KEY
+            // Inject server API key for all requests
+            if (ZENSOR_API_KEY) {
+                headers['X-Auth-Token'] = ZENSOR_API_KEY
                 headers['Authorization'] = `Bearer ${ZENSOR_API_KEY}`
             }
 
@@ -100,7 +97,7 @@ export function setupApiProxy(app) {
             // Set response headers
             res.set('Access-Control-Allow-Origin', '*')
             res.set('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-            res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-User-ID, X-User-Email, X-User-Name, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email')
+            res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Auth-Token, X-User-ID, X-User-Email, X-User-Name, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email')
 
             // Forward response
             const data = await response.text()
@@ -128,7 +125,7 @@ export function setupApiProxy(app) {
     app.options('/api/*', (req, res) => {
         res.header('Access-Control-Allow-Origin', '*')
         res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-User-ID, X-User-Email, X-User-Name, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email')
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Auth-Token, X-User-ID, X-User-Email, X-User-Name, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email')
         res.sendStatus(200)
     })
 

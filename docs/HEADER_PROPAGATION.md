@@ -8,10 +8,10 @@ The Zensor Portal UI server acts as a proxy between the frontend and the Zensor 
 
 ### Standard Authentication Headers
 
-| Header            | Description                           | Example             |
-| ----------------- | ------------------------------------- | ------------------- |
-| `Authorization`   | Standard HTTP authorization header    | `Bearer <token>`    |
-| `X-API-Key`       | API key for authentication            | `your-api-key-here` |
+| Header          | Description                        | Example          |
+| --------------- | ---------------------------------- | ---------------- |
+| `Authorization` | Standard HTTP authorization header | `Bearer <token>` |
+
 | `X-User-ID`       | Unique user identifier                | `user123`           |
 | `X-User-Email`    | User's email address                  | `user@example.com`  |
 | `X-User-Name`     | User's display name                   | `John Doe`          |
@@ -22,18 +22,19 @@ The Zensor Portal UI server acts as a proxy between the frontend and the Zensor 
 
 ### Legacy Headers (Backward Compatibility)
 
-| Header         | Description            | Example            |
-| -------------- | ---------------------- | ------------------ |
-| `Remote-User`  | Legacy user identifier | `user123`          |
-| `Remote-Name`  | Legacy user name       | `John Doe`         |
-| `Remote-Email` | Legacy user email      | `user@example.com` |
+| Header         | Description            | Example            | Mapped To      |
+| -------------- | ---------------------- | ------------------ | -------------- |
+| `Remote-User`  | Legacy user identifier | `user123`          | `X-User-ID`    |
+| `Remote-Name`  | Legacy user name       | `John Doe`         | `X-User-Name`  |
+| `Remote-Email` | Legacy user email      | `user@example.com` | `X-User-Email` |
 
 ## How It Works
 
 1. **Request Reception**: The server receives requests from the frontend or external authentication systems
 2. **Header Extraction**: Standard user headers are extracted from the incoming request
-3. **Header Propagation**: These headers are forwarded to the Zensor API in the proxied request
-4. **Fallback Authentication**: If no user authentication headers are provided, the server's configured API key is used
+3. **Header Mapping**: Legacy Remote-* headers are mapped to their X-User-* equivalents
+4. **Header Propagation**: These headers are forwarded to the Zensor API in the proxied request
+5. **Server Authentication**: The server automatically injects its configured API key for all requests
 
 ## Implementation Details
 
@@ -47,17 +48,25 @@ const userHeaders = {}
 if (req.headers.authorization) {
     userHeaders['Authorization'] = req.headers.authorization
 }
-if (req.headers['x-api-key']) {
-    userHeaders['X-API-Key'] = req.headers['x-api-key']
-}
 // ... additional headers
+
+// Legacy header mapping
+if (req.headers['remote-user']) {
+    userHeaders['X-User-ID'] = req.headers['remote-user']
+}
+if (req.headers['remote-name']) {
+    userHeaders['X-User-Name'] = req.headers['remote-name']
+}
+if (req.headers['remote-email']) {
+    userHeaders['X-User-Email'] = req.headers['remote-email']
+}
 
 // Merge with existing headers
 Object.assign(headers, userHeaders)
 
-// Fallback to server API key if no user auth provided
-if (!headers.authorization && !headers['x-api-key'] && ZENSOR_API_KEY) {
-    headers['X-API-Key'] = ZENSOR_API_KEY
+// Inject server API key for all requests
+if (ZENSOR_API_KEY) {
+    headers['X-Auth-Token'] = ZENSOR_API_KEY
     headers['Authorization'] = `Bearer ${ZENSOR_API_KEY}`
 }
 ```
@@ -67,7 +76,7 @@ if (!headers.authorization && !headers['x-api-key'] && ZENSOR_API_KEY) {
 The server is configured to allow the following headers in CORS requests:
 
 ```
-Content-Type, Authorization, X-API-Key, X-User-ID, X-User-Email, 
+Content-Type, Authorization, X-API-Key, X-Auth-Token, X-User-ID, X-User-Email, 
 X-User-Name, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, 
 Remote-User, Remote-Name, Remote-Email
 ```
@@ -88,6 +97,7 @@ const response = await fetch('/api/v1/tenants/123/devices', {
         'Authorization': 'Bearer user-token-here'
     }
 })
+// Note: API key is automatically injected by the server
 ```
 
 ### External Authentication System
@@ -103,6 +113,7 @@ location / {
     proxy_set_header X-Tenant-ID $http_x_tenant_id;
     proxy_set_header Authorization $http_authorization;
 }
+# Note: API key is automatically injected by the server
 ```
 
 ## Security Considerations
