@@ -1,0 +1,60 @@
+# OpenTelemetry Collector Configuration
+# This is a sample configuration for the OpenTelemetry Collector
+# Save this as otel-collector-config.yaml and run with:
+# docker run -p 4317:4317 -p 4318:4318 -v $(pwd)/otel-collector-config.yaml:/etc/otelcol-contrib/otel-collector-config.yaml otel/opentelemetry-collector-contrib:latest
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+  memory_limiter:
+    limit_mib: 512
+  resource:
+    attributes:
+      - key: environment
+        value: development
+        action: upsert
+
+exporters:
+  # Jaeger exporter (if you want to use Jaeger as backend)
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+
+  # OTLP exporter for other backends
+  otlp:
+    endpoint: https://api.honeycomb.io:443
+    headers:
+      "x-honeycomb-team": "your-api-key"
+      "x-honeycomb-dataset": "zensor-ui"
+
+  # Console exporter for debugging
+  logging:
+    loglevel: debug
+
+  # Prometheus exporter for metrics (optional)
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [jaeger, logging]  # Add your preferred exporters here
+    
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus, logging]
+
+  extensions: [health_check, pprof, zpages]

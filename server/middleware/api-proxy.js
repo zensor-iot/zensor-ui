@@ -1,4 +1,6 @@
 import express from 'express'
+import { tracer, injectTraceContext, addHttpSpanAttributes, addErrorSpanAttributes } from '../tracing.js'
+import { context, trace } from '@opentelemetry/api'
 
 // Configuration
 const ZENSOR_API_URL = process.env.ZENSOR_API_URL || 'http://localhost:3000'
@@ -12,24 +14,46 @@ export function setupApiProxy(app) {
 
     // Manual proxy implementation
     app.use('/api/*', async (req, res) => {
+        // Create a span for the API proxy operation
+        const span = tracer.startSpan(`API Proxy: ${req.method} ${req.path}`, {
+            kind: 2, // SpanKind.CLIENT
+            attributes: {
+                'span.kind': 'client',
+                'component': 'zensor-ui',
+                'operation': 'api_proxy',
+                'http.method': req.method,
+                'http.url': req.url,
+                'http.target_path': req.path,
+            },
+        })
+
         try {
             // Transform /api/* to /v1/*
             const targetPath = req.path.replace(/^\/api/, '/v1')
             const targetUrl = `${ZENSOR_API_URL}${targetPath}${req.search || ''}`
+
+            // Add target URL to span
+            span.setAttributes({
+                'http.target_url': targetUrl,
+                'http.target_path': targetPath,
+            })
 
             // Log requests in development
             if (process.env.NODE_ENV !== 'production') {
                 console.log(`🔄 Proxying ${req.method} ${req.path} -> ${targetUrl}`)
             }
 
-            // Prepare headers
+            // Prepare headers with trace context injection
             const headers = {
                 'Content-Type': 'application/json',
                 ...req.headers
             }
 
+            // Inject trace context into headers for propagation to backend
+            const headersWithTrace = injectTraceContext(headers)
+
             // Remove host header to avoid conflicts
-            delete headers.host
+            delete headersWithTrace.host
 
             // Propagate standard user authentication headers
             const userHeaders = {}
@@ -72,18 +96,28 @@ export function setupApiProxy(app) {
             }
 
             // Merge user headers with existing headers
-            Object.assign(headers, userHeaders)
+            Object.assign(headersWithTrace, userHeaders)
 
             // Inject server API key for all requests
             if (ZENSOR_API_KEY) {
-                headers['X-Auth-Token'] = ZENSOR_API_KEY
-                headers['Authorization'] = `Bearer ${ZENSOR_API_KEY}`
+                headersWithTrace['X-Auth-Token'] = ZENSOR_API_KEY
+                headersWithTrace['Authorization'] = `Bearer ${ZENSOR_API_KEY}`
+            }
+
+            // Add trace context headers for debugging
+            if (process.env.NODE_ENV !== 'production') {
+                console.log('📤 Trace context headers:', {
+                    'b3-trace-id': headersWithTrace['b3-trace-id'] || 'not set',
+                    'b3-span-id': headersWithTrace['b3-span-id'] || 'not set',
+                    'b3-parent-span-id': headersWithTrace['b3-parent-span-id'] || 'not set',
+                    'b3-sampled': headersWithTrace['b3-sampled'] || 'not set',
+                })
             }
 
             // Prepare fetch options
             const fetchOptions = {
                 method: req.method,
-                headers
+                headers: headersWithTrace
             }
 
             // Add body for POST/PUT requests
@@ -91,8 +125,17 @@ export function setupApiProxy(app) {
                 fetchOptions.body = JSON.stringify(req.body)
             }
 
-            // Make request to Zensor API
+            // Make request to Zensor API with timing
+            const startTime = Date.now()
             const response = await fetch(targetUrl, fetchOptions)
+            const responseTime = Date.now() - startTime
+
+            // Add HTTP response attributes to span
+            addHttpSpanAttributes(span, req.method, targetUrl, response.status, responseTime)
+            span.setAttributes({
+                'http.response_size': response.headers.get('content-length') || 0,
+                'http.response_content_type': response.headers.get('content-type') || 'unknown',
+            })
 
             // Set response headers
             res.set('Access-Control-Allow-Origin', '*')
@@ -103,6 +146,16 @@ export function setupApiProxy(app) {
             const data = await response.text()
             res.status(response.status)
 
+            // Set span status based on response
+            if (response.status >= 400) {
+                span.setStatus({
+                    code: 2, // StatusCode.ERROR
+                    message: `HTTP ${response.status}`,
+                })
+            } else {
+                span.setStatus({ code: 1 }) // StatusCode.OK
+            }
+
             // Try to parse as JSON, fallback to text
             try {
                 const jsonData = JSON.parse(data)
@@ -111,8 +164,16 @@ export function setupApiProxy(app) {
                 res.send(data)
             }
 
+            // End the span successfully
+            span.end()
+
         } catch (error) {
             console.error('❌ Proxy error:', error.message)
+
+            // Add error attributes to span
+            addErrorSpanAttributes(span, error)
+            span.end()
+
             res.status(500).json({
                 error: 'Proxy Error',
                 message: 'Failed to connect to Zensor API',

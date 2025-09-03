@@ -1,9 +1,14 @@
+// Initialize OpenTelemetry tracing first
+import './tracing.js'
+
 import express from 'express'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 import fs from 'fs'
 import { createServer } from 'http'
 import { setupWebSocketProxy } from './middleware/websocket-proxy.js'
+import { tracingMiddleware, traceContextMiddleware } from './middleware/tracing.js'
+import { tracer, injectTraceContext, addHttpSpanAttributes, addErrorSpanAttributes } from './tracing.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const port = process.env.PORT || 5173
@@ -14,6 +19,10 @@ async function createSimpleServer() {
     const app = express()
 
     console.log(`🔗 Setting up API proxy to: ${ZENSOR_API_URL}`)
+
+    // Apply tracing middleware first
+    app.use(traceContextMiddleware)
+    app.use(tracingMiddleware)
 
     // Parse JSON bodies
     app.use(express.json())
@@ -44,24 +53,46 @@ async function createSimpleServer() {
 
     // Manual API proxy
     app.all('/api/*', async (req, res) => {
+        // Create a span for the API proxy operation
+        const span = req.span ? req.span : tracer.startSpan(`API Proxy: ${req.method} ${req.path}`, {
+            kind: 2, // SpanKind.CLIENT
+            attributes: {
+                'span.kind': 'client',
+                'component': 'zensor-ui',
+                'operation': 'api_proxy',
+                'http.method': req.method,
+                'http.url': req.url,
+                'http.target_path': req.path,
+            },
+        })
+
         try {
             // Transform /api/* to /v1/*
             const targetPath = req.path.replace(/^\/api/, '/v1')
             const targetUrl = `${ZENSOR_API_URL}${targetPath}${req.search || ''}`
 
+            // Add target URL to span
+            span.setAttributes({
+                'http.target_url': targetUrl,
+                'http.target_path': targetPath,
+            })
+
             console.log(`🔄 Proxying ${req.method} ${req.path} -> ${targetUrl}`)
 
-            // Prepare headers
+            // Prepare headers with trace context injection
             const headers = {
                 'Content-Type': 'application/json',
                 ...req.headers
             }
 
+            // Inject trace context into headers for propagation to backend
+            const headersWithTrace = injectTraceContext(headers)
+
             // Remove host header to avoid conflicts
-            delete headers.host
+            delete headersWithTrace.host
 
             // Remove accept-encoding to prevent compression issues
-            delete headers['accept-encoding']
+            delete headersWithTrace['accept-encoding']
 
             // Propagate standard user authentication headers
             const userHeaders = {}
@@ -104,30 +135,40 @@ async function createSimpleServer() {
             }
 
             // Merge user headers with existing headers
-            Object.assign(headers, userHeaders)
+            Object.assign(headersWithTrace, userHeaders)
 
             // Inject server API key for all requests
             if (ZENSOR_API_KEY) {
-                headers['X-Auth-Token'] = ZENSOR_API_KEY
-                headers['Authorization'] = `Bearer ${ZENSOR_API_KEY}`
+                headersWithTrace['X-Auth-Token'] = ZENSOR_API_KEY
+                headersWithTrace['Authorization'] = `Bearer ${ZENSOR_API_KEY}`
+            }
+
+            // Add trace context headers for debugging
+            if (process.env.NODE_ENV !== 'production') {
+                console.log('📤 Trace context headers:', {
+                    'b3-trace-id': headersWithTrace['b3-trace-id'] || 'not set',
+                    'b3-span-id': headersWithTrace['b3-span-id'] || 'not set',
+                    'b3-parent-span-id': headersWithTrace['b3-parent-span-id'] || 'not set',
+                    'b3-sampled': headersWithTrace['b3-sampled'] || 'not set',
+                })
             }
 
             // Debug logging for header propagation (development only)
             if (process.env.NODE_ENV !== 'production') {
                 console.log('📤 Propagating headers to Zensor API:', {
-                    'Authorization': headers.authorization ? '***' : 'not set',
-                    'X-Auth-Token': headers['x-auth-token'] ? '***' : 'not set',
-                    'X-User-ID': headers['x-user-id'] || 'not set',
-                    'X-User-Email': headers['x-user-email'] || 'not set',
-                    'X-Tenant-ID': headers['x-tenant-id'] || 'not set',
-                    'X-Request-ID': headers['x-request-id'] || 'not set'
+                    'Authorization': headersWithTrace.authorization ? '***' : 'not set',
+                    'X-Auth-Token': headersWithTrace['x-auth-token'] ? '***' : 'not set',
+                    'X-User-ID': headersWithTrace['x-user-id'] || 'not set',
+                    'X-User-Email': headersWithTrace['x-user-email'] || 'not set',
+                    'X-Tenant-ID': headersWithTrace['x-tenant-id'] || 'not set',
+                    'X-Request-ID': headersWithTrace['x-request-id'] || 'not set'
                 })
             }
 
             // Prepare fetch options
             const fetchOptions = {
                 method: req.method,
-                headers
+                headers: headersWithTrace
             }
 
             // Add body for POST/PUT requests
@@ -135,8 +176,17 @@ async function createSimpleServer() {
                 fetchOptions.body = JSON.stringify(req.body)
             }
 
-            // Make request to Zensor API
+            // Make request to Zensor API with timing
+            const startTime = Date.now()
             const response = await fetch(targetUrl, fetchOptions)
+            const responseTime = Date.now() - startTime
+
+            // Add HTTP response attributes to span
+            addHttpSpanAttributes(span, req.method, targetUrl, response.status, responseTime)
+            span.setAttributes({
+                'http.response_size': response.headers.get('content-length') || 0,
+                'http.response_content_type': response.headers.get('content-type') || 'unknown',
+            })
 
             // Set CORS headers
             res.set('Access-Control-Allow-Origin', '*')
@@ -147,6 +197,16 @@ async function createSimpleServer() {
             const data = await response.text()
             res.status(response.status)
 
+            // Set span status based on response
+            if (response.status >= 400) {
+                span.setStatus({
+                    code: 2, // StatusCode.ERROR
+                    message: `HTTP ${response.status}`,
+                })
+            } else {
+                span.setStatus({ code: 1 }) // StatusCode.OK
+            }
+
             // Try to parse as JSON, fallback to text
             try {
                 const jsonData = JSON.parse(data)
@@ -155,8 +215,16 @@ async function createSimpleServer() {
                 res.send(data)
             }
 
+            // End the span successfully
+            span.end()
+
         } catch (error) {
             console.error('❌ Proxy error:', error.message)
+
+            // Add error attributes to span
+            addErrorSpanAttributes(span, error)
+            span.end()
+
             res.status(500).json({
                 error: 'Proxy Error',
                 message: 'Failed to connect to Zensor API',
