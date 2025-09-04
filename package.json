@@ -14,13 +14,14 @@
     "start:tracing": "NODE_ENV=production OTEL_SERVICE_NAME=zensor-ui OTEL_EXPORTER_TYPE=otlp node server/simple-server.js",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "npm run build && npm run start",
-    "test:tracing": "node server/test-tracing.js",
+    "test:observability": "node server/test-tracing.js",
     "mock": "node custom-mock-server.js",
     "mock:prism": "node mock-server.js"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.62.2",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.203.0",
     "@opentelemetry/exporter-otlp-http": "^0.26.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.203.0",
     "@opentelemetry/instrumentation-express": "^0.52.0",
@@ -28,6 +29,7 @@
     "@opentelemetry/instrumentation-http": "^0.203.0",
     "@opentelemetry/propagator-b3": "^2.0.1",
     "@opentelemetry/propagator-jaeger": "^2.0.1",
+    "@opentelemetry/sdk-metrics": "^2.0.1",
     "@opentelemetry/sdk-node": "^0.203.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",

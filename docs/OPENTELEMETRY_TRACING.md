@@ -1,14 +1,15 @@
-# OpenTelemetry Tracing Implementation
+# OpenTelemetry Tracing and Metrics Implementation
 
-This document describes the OpenTelemetry tracing implementation for the Zensor Portal UI server.
+This document describes the OpenTelemetry tracing and metrics implementation for the Zensor Portal UI server.
 
 ## Overview
 
-The application implements comprehensive distributed tracing using OpenTelemetry to provide visibility into:
+The application implements comprehensive distributed tracing and metrics using OpenTelemetry to provide visibility into:
 - HTTP API requests and responses
 - WebSocket connections and message forwarding
 - Backend API calls with context propagation
 - Error tracking and performance monitoring
+- Request traffic, error rates, and latency metrics
 
 ## Architecture
 
@@ -30,23 +31,27 @@ graph TD
     J --> K[OpenTelemetry Collector]
     K --> L[Backend Systems]
     L --> M[Jaeger/Honeycomb/Datadog/etc.]
+    
+    N[Metrics Collection] --> O[OTLP Metrics Exporter]
+    O --> K
 ```
 
 ## Components
 
 ### 1. Tracing Configuration (`server/tracing.js`)
 
-The main tracing configuration file that:
+The main tracing and metrics configuration file that:
 - Initializes the OpenTelemetry SDK
-- Configures OTLP exporter for collector integration
+- Configures OTLP exporters for traces and metrics
 - Sets up automatic instrumentation
-- Provides utility functions for span creation and context propagation
+- Provides utility functions for span creation, context propagation, and metrics recording
 
 **Key Features:**
 - Service name: `zensor-ui` (configurable via `OTEL_SERVICE_NAME`)
 - Service version: `1.0.0` (configurable via `OTEL_SERVICE_VERSION`)
 - B3 propagation format for trace context
-- OTLP exporter for OpenTelemetry Collector integration
+- OTLP exporters for OpenTelemetry Collector integration
+- Custom metrics with `zensor_ui_` prefix
 
 ### 2. Express Middleware (`server/middleware/tracing.js`)
 
@@ -108,6 +113,99 @@ WebSocket proxy with tracing that:
 - `websocket.close_code`: WebSocket close code
 - `websocket.close_reason`: WebSocket close reason
 
+## Metrics Collection
+
+The application collects comprehensive metrics with the `zensor_ui_` prefix to match your backend's `zensor_server_` prefix:
+
+### HTTP Metrics
+
+#### `zensor_ui_http_requests_total`
+- **Type**: Counter
+- **Description**: Total number of HTTP requests
+- **Labels**:
+  - `method`: HTTP method (GET, POST, PUT, DELETE, etc.)
+  - `path`: Request path
+  - `status_code`: HTTP status code
+  - `component`: Always "zensor-ui"
+  - `operation`: Operation type (api_proxy, etc.)
+  - `tenant_id`: Tenant ID (if present)
+  - `user_id`: User ID (if present)
+
+#### `zensor_ui_http_request_duration_seconds`
+- **Type**: Histogram
+- **Description**: HTTP request duration in seconds
+- **Labels**: Same as `zensor_ui_http_requests_total`
+- **Buckets**: Default histogram buckets for latency analysis
+
+#### `zensor_ui_http_errors_total`
+- **Type**: Counter
+- **Description**: Total number of HTTP errors (4xx and 5xx)
+- **Labels**: Same as `zensor_ui_http_requests_total` plus:
+  - `error_type`: "client_error" (4xx) or "server_error" (5xx)
+
+### WebSocket Metrics
+
+#### `zensor_ui_websocket_connections_total`
+- **Type**: Counter
+- **Description**: Total number of WebSocket connections
+- **Labels**:
+  - `component`: Always "zensor-ui"
+  - `operation`: "websocket_connection"
+  - `url`: WebSocket URL
+  - `protocol`: "ws"
+  - `user_agent`: Client user agent
+  - `remote_addr`: Client IP address
+
+#### `zensor_ui_websocket_messages_total`
+- **Type**: Counter
+- **Description**: Total number of WebSocket messages
+- **Labels**:
+  - `component`: Always "zensor-ui"
+  - `operation`: "websocket_message_forward"
+  - `direction`: "upstream_to_client" or "client_to_upstream"
+  - `message_size`: Message size in bytes
+
+#### `zensor_ui_websocket_errors_total`
+- **Type**: Counter
+- **Description**: Total number of WebSocket errors
+- **Labels**:
+  - `component`: Always "zensor-ui"
+  - `operation`: "websocket_connection" or "websocket_message_forward"
+  - `error_type`: "upstream_error", "client_error", or "send_error"
+  - `error_message`: Error message (if available)
+
+### Metrics Usage Examples
+
+#### Prometheus Queries
+```promql
+# Request rate per second
+rate(zensor_ui_http_requests_total[5m])
+
+# Error rate percentage
+rate(zensor_ui_http_errors_total[5m]) / rate(zensor_ui_http_requests_total[5m]) * 100
+
+# 95th percentile latency
+histogram_quantile(0.95, rate(zensor_ui_http_request_duration_seconds_bucket[5m]))
+
+# WebSocket connection rate
+rate(zensor_ui_websocket_connections_total[5m])
+
+# WebSocket message rate by direction
+rate(zensor_ui_websocket_messages_total[5m]) by (direction)
+```
+
+#### Grafana Dashboard Queries
+```promql
+# Request count by status code
+sum(rate(zensor_ui_http_requests_total[5m])) by (status_code)
+
+# Average response time
+rate(zensor_ui_http_request_duration_seconds_sum[5m]) / rate(zensor_ui_http_request_duration_seconds_count[5m])
+
+# Error rate by operation
+rate(zensor_ui_http_errors_total[5m]) by (operation)
+```
+
 ## Trace Context Propagation
 
 The application uses B3 propagation format to propagate trace context to backend services:
@@ -130,12 +228,12 @@ The application uses B3 propagation format to propagate trace context to backend
 
 ### Environment Variables
 
-| Variable                      | Default                           | Description              |
-| ----------------------------- | --------------------------------- | ------------------------ |
-| `OTEL_SERVICE_NAME`           | `zensor-ui`                       | Service name for tracing |
-| `OTEL_SERVICE_VERSION`        | `1.0.0`                           | Service version          |
-| `OTEL_EXPORTER_TYPE`          | `otlp`                            | Exporter type (otlp)     |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318/v1/traces` | OTLP collector endpoint  |
+| Variable                      | Default                 | Description              |
+| ----------------------------- | ----------------------- | ------------------------ |
+| `OTEL_SERVICE_NAME`           | `zensor-ui`             | Service name for tracing |
+| `OTEL_SERVICE_VERSION`        | `1.0.0`                 | Service version          |
+| `OTEL_EXPORTER_TYPE`          | `otlp`                  | Exporter type (otlp)     |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | OTLP collector base URL  |
 
 ### Example Configuration
 
@@ -144,12 +242,16 @@ The application uses B3 propagation format to propagate trace context to backend
 export OTEL_SERVICE_NAME="zensor-ui"
 export OTEL_SERVICE_VERSION="1.0.0"
 export OTEL_EXPORTER_TYPE="otlp"
-export OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4318/v1/traces"
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4318"
 
 # Alternative OTLP endpoints
-export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318/v1/traces"  # Local collector
-export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.honeycomb.io/v1/traces"  # Honeycomb
-export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.datadoghq.com/api/v2/otlp/v1/traces"  # Datadog
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"  # Local collector
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.honeycomb.io"  # Honeycomb
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.datadoghq.com/api/v2/otlp"  # Datadog
+
+# Note: The application automatically appends:
+# - /v1/traces for trace data
+# - /v1/metrics for metrics data
 ```
 
 ## Usage
@@ -179,14 +281,14 @@ docker run -p 4317:4317 -p 4318:4318 \
 ```
 
 #### Option 3: Direct to Backend
-Configure your application to send traces directly to your preferred backend:
+Configure your application to send traces and metrics directly to your preferred backend:
 ```bash
 # Honeycomb
-export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.honeycomb.io/v1/traces"
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.honeycomb.io"
 export OTEL_EXPORTER_OTLP_HEADERS="x-honeycomb-team=your-api-key,x-honeycomb-dataset=zensor-ui"
 
 # Datadog
-export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.datadoghq.com/api/v2/otlp/v1/traces"
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.datadoghq.com/api/v2/otlp"
 export OTEL_EXPORTER_OTLP_HEADERS="DD-API-KEY=your-api-key"
 ```
 
@@ -199,15 +301,17 @@ npm run dev:tracing
 # Production with tracing
 npm run start:tracing
 
-# Test tracing functionality
-npm run test:tracing
+# Test tracing and metrics functionality
+npm run test:observability
 ```
 
-### Viewing Traces
+### Viewing Traces and Metrics
 
 1. **OpenTelemetry Collector**: Configure your collector to export to your preferred backend
 2. **Jaeger**: If collector exports to Jaeger, navigate to `http://localhost:16686`
-3. **Other backends**: Use your OTLP-compatible observability platform (Honeycomb, Datadog, etc.)
+3. **Prometheus**: For metrics, navigate to `http://localhost:9090`
+4. **Grafana**: For dashboards, navigate to `http://localhost:3000`
+5. **Other backends**: Use your OTLP-compatible observability platform (Honeycomb, Datadog, etc.)
 
 ### Trace Examples
 

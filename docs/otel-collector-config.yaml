@@ -55,6 +55,6 @@ service:
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
-      exporters: [prometheus, logging]
+      exporters: [prometheus, logging]  # Add your preferred exporters here
 
   extensions: [health_check, pprof, zpages]

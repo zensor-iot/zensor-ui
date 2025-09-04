@@ -1,5 +1,5 @@
 import express from 'express'
-import { tracer, injectTraceContext, addHttpSpanAttributes, addErrorSpanAttributes } from '../tracing.js'
+import { tracer, injectTraceContext, addHttpSpanAttributes, addErrorSpanAttributes, recordHttpRequestMetrics } from '../tracing.js'
 import { context, trace } from '@opentelemetry/api'
 
 // Configuration
@@ -136,6 +136,21 @@ export function setupApiProxy(app) {
                 'http.response_size': response.headers.get('content-length') || 0,
                 'http.response_content_type': response.headers.get('content-type') || 'unknown',
             })
+
+            // Record API proxy metrics
+            recordHttpRequestMetrics(
+                req.method,
+                req.path,
+                response.status,
+                responseTime,
+                {
+                    operation: 'api_proxy',
+                    target_url: targetUrl,
+                    target_path: targetPath,
+                    tenant_id: req.get('X-Tenant-ID'),
+                    user_id: req.get('X-User-ID'),
+                }
+            )
 
             // Set response headers
             res.set('Access-Control-Allow-Origin', '*')

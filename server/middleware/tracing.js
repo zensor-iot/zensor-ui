@@ -1,5 +1,5 @@
 import { trace, context, SpanStatusCode } from '@opentelemetry/api'
-import { tracer, addHttpSpanAttributes, addErrorSpanAttributes } from '../tracing.js'
+import { tracer, addHttpSpanAttributes, addErrorSpanAttributes, recordHttpRequestMetrics } from '../tracing.js'
 
 // Custom Express middleware for tracing
 export function tracingMiddleware(req, res, next) {
@@ -39,6 +39,20 @@ export function tracingMiddleware(req, res, next) {
                 'http.response_time_ms': responseTime,
                 'http.content_length': res.get('Content-Length') || 0,
             })
+
+            // Record metrics
+            recordHttpRequestMetrics(
+                req.method,
+                req.path,
+                res.statusCode,
+                responseTime,
+                {
+                    route: req.route?.path || req.path,
+                    user_agent: req.get('User-Agent'),
+                    tenant_id: req.get('X-Tenant-ID'),
+                    user_id: req.get('X-User-ID'),
+                }
+            )
 
             // Set span status based on response code
             if (res.statusCode >= 400) {

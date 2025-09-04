@@ -1,14 +1,17 @@
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http'
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
 import { B3Propagator } from '@opentelemetry/propagator-b3'
-import { trace, context, propagation } from '@opentelemetry/api'
+import { trace, context, propagation, metrics } from '@opentelemetry/api'
 
 // Initialize OpenTelemetry SDK
 const sdk = new NodeSDK({
     serviceName: process.env.OTEL_SERVICE_NAME || 'zensor-ui',
     serviceVersion: process.env.OTEL_SERVICE_VERSION || '1.0.0',
     traceExporter: getTraceExporter(),
+    metricReader: getMetricReader(),
     instrumentations: [
         getNodeAutoInstrumentations({
             // Disable some instrumentations that might conflict with our custom setup
@@ -25,16 +28,42 @@ const sdk = new NodeSDK({
 
 function getTraceExporter() {
     const exporterType = process.env.OTEL_EXPORTER_TYPE || 'otlp'
+    const baseEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318'
+    const tracesEndpoint = `${baseEndpoint}/v1/traces`
 
     switch (exporterType) {
         case 'otlp':
             return new OTLPTraceExporter({
-                url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces',
+                url: tracesEndpoint,
             })
         default:
             console.warn(`Unknown exporter type: ${exporterType}, using OTLP`)
             return new OTLPTraceExporter({
-                url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces',
+                url: tracesEndpoint,
+            })
+    }
+}
+
+function getMetricReader() {
+    const exporterType = process.env.OTEL_EXPORTER_TYPE || 'otlp'
+    const baseEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318'
+    const metricsEndpoint = `${baseEndpoint}/v1/metrics`
+
+    switch (exporterType) {
+        case 'otlp':
+            return new PeriodicExportingMetricReader({
+                exporter: new OTLPMetricExporter({
+                    url: metricsEndpoint,
+                }),
+                exportIntervalMillis: 10000, // Export every 10 seconds
+            })
+        default:
+            console.warn(`Unknown exporter type: ${exporterType}, using OTLP`)
+            return new PeriodicExportingMetricReader({
+                exporter: new OTLPMetricExporter({
+                    url: metricsEndpoint,
+                }),
+                exportIntervalMillis: 10000,
             })
     }
 }
@@ -52,6 +81,40 @@ process.on('SIGTERM', () => {
 
 // Export tracing utilities
 export const tracer = trace.getTracer('zensor-ui', '1.0.0')
+
+// Export metrics utilities
+export const meter = metrics.getMeter('zensor-ui', '1.0.0')
+
+// Create metrics instruments
+export const httpRequestCounter = meter.createCounter('zensor_ui_http_requests_total', {
+    description: 'Total number of HTTP requests',
+    unit: '1',
+})
+
+export const httpRequestDuration = meter.createHistogram('zensor_ui_http_request_duration_seconds', {
+    description: 'HTTP request duration in seconds',
+    unit: 's',
+})
+
+export const httpRequestErrors = meter.createCounter('zensor_ui_http_errors_total', {
+    description: 'Total number of HTTP errors',
+    unit: '1',
+})
+
+export const websocketConnections = meter.createCounter('zensor_ui_websocket_connections_total', {
+    description: 'Total number of WebSocket connections',
+    unit: '1',
+})
+
+export const websocketMessages = meter.createCounter('zensor_ui_websocket_messages_total', {
+    description: 'Total number of WebSocket messages',
+    unit: '1',
+})
+
+export const websocketErrors = meter.createCounter('zensor_ui_websocket_errors_total', {
+    description: 'Total number of WebSocket errors',
+    unit: '1',
+})
 
 // Helper function to create a span for API calls
 export function createApiSpan(operationName, attributes = {}) {
@@ -113,9 +176,58 @@ export function addErrorSpanAttributes(span, error) {
     span.setStatus({ code: 2, message: error.message }) // StatusCode.ERROR
 }
 
-console.log('🔍 OpenTelemetry tracing initialized')
+// Helper function to record HTTP request metrics
+export function recordHttpRequestMetrics(method, path, statusCode, durationMs, attributes = {}) {
+    const baseAttributes = {
+        method,
+        path,
+        status_code: statusCode.toString(),
+        component: 'zensor-ui',
+        ...attributes,
+    }
+
+    // Record request counter
+    httpRequestCounter.add(1, baseAttributes)
+
+    // Record request duration
+    httpRequestDuration.record(durationMs / 1000, baseAttributes)
+
+    // Record errors
+    if (statusCode >= 400) {
+        httpRequestErrors.add(1, {
+            ...baseAttributes,
+            error_type: statusCode >= 500 ? 'server_error' : 'client_error',
+        })
+    }
+}
+
+// Helper function to record WebSocket metrics
+export function recordWebSocketMetrics(event, attributes = {}) {
+    const baseAttributes = {
+        component: 'zensor-ui',
+        ...attributes,
+    }
+
+    switch (event) {
+        case 'connection':
+            websocketConnections.add(1, baseAttributes)
+            break
+        case 'message':
+            websocketMessages.add(1, baseAttributes)
+            break
+        case 'error':
+            websocketErrors.add(1, baseAttributes)
+            break
+    }
+}
+
+const baseEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318'
+
+console.log('🔍 OpenTelemetry tracing and metrics initialized')
 console.log(`📊 Service: ${process.env.OTEL_SERVICE_NAME || 'zensor-ui'}`)
 console.log(`📈 Exporter: ${process.env.OTEL_EXPORTER_TYPE || 'otlp'}`)
-console.log(`🔗 OTLP Endpoint: ${process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces'}`)
+console.log(`🔗 OTLP Base Endpoint: ${baseEndpoint}`)
+console.log(`🔗 OTLP Traces Endpoint: ${baseEndpoint}/v1/traces`)
+console.log(`📊 OTLP Metrics Endpoint: ${baseEndpoint}/v1/metrics`)
 
 export default sdk

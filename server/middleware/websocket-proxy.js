@@ -1,6 +1,6 @@
 import { WebSocketServer } from 'ws'
 import WebSocket from 'ws'
-import { tracer, injectTraceContext, addErrorSpanAttributes } from '../tracing.js'
+import { tracer, injectTraceContext, addErrorSpanAttributes, recordWebSocketMetrics } from '../tracing.js'
 import { context, trace } from '@opentelemetry/api'
 
 // Configuration
@@ -17,6 +17,15 @@ export function setupWebSocketProxy(server) {
 
     wss.on('connection', (clientWs, request) => {
         console.log('🔌 New WebSocket client connected')
+
+        // Record WebSocket connection metric
+        recordWebSocketMetrics('connection', {
+            operation: 'websocket_connection',
+            url: ZENSOR_WS_URL,
+            protocol: 'ws',
+            user_agent: request.headers['user-agent'],
+            remote_addr: request.connection.remoteAddress,
+        })
 
         // Create a span for the WebSocket connection
         const connectionSpan = tracer.startSpan('WebSocket Connection', {
@@ -55,9 +64,23 @@ export function setupWebSocketProxy(server) {
                     const messageData = data instanceof Buffer ? data.toString('utf8') : data
                     clientWs.send(messageData)
 
+                    // Record WebSocket message metric
+                    recordWebSocketMetrics('message', {
+                        operation: 'websocket_message_forward',
+                        direction: 'upstream_to_client',
+                        message_size: data.length,
+                    })
+
                     messageSpan.setStatus({ code: 1 }) // StatusCode.OK
                 } catch (error) {
                     addErrorSpanAttributes(messageSpan, error)
+
+                    // Record WebSocket error metric
+                    recordWebSocketMetrics('error', {
+                        operation: 'websocket_message_forward',
+                        direction: 'upstream_to_client',
+                        error_type: 'send_error',
+                    })
                 } finally {
                     messageSpan.end()
                 }
@@ -84,9 +107,23 @@ export function setupWebSocketProxy(server) {
                     const messageData = data instanceof Buffer ? data.toString('utf8') : data
                     zensorWs.send(messageData)
 
+                    // Record WebSocket message metric
+                    recordWebSocketMetrics('message', {
+                        operation: 'websocket_message_forward',
+                        direction: 'client_to_upstream',
+                        message_size: data.length,
+                    })
+
                     messageSpan.setStatus({ code: 1 }) // StatusCode.OK
                 } catch (error) {
                     addErrorSpanAttributes(messageSpan, error)
+
+                    // Record WebSocket error metric
+                    recordWebSocketMetrics('error', {
+                        operation: 'websocket_message_forward',
+                        direction: 'client_to_upstream',
+                        error_type: 'send_error',
+                    })
                 } finally {
                     messageSpan.end()
                 }
@@ -109,6 +146,14 @@ export function setupWebSocketProxy(server) {
                 'websocket.connection_status': 'error',
                 'websocket.upstream_connected': false,
             })
+
+            // Record WebSocket error metric
+            recordWebSocketMetrics('error', {
+                operation: 'websocket_connection',
+                error_type: 'upstream_error',
+                error_message: error.message,
+            })
+
             connectionSpan.end()
 
             if (clientWs.readyState === WebSocket.OPEN) {
@@ -154,6 +199,14 @@ export function setupWebSocketProxy(server) {
                 'websocket.connection_status': 'error',
                 'websocket.client_connected': false,
             })
+
+            // Record WebSocket error metric
+            recordWebSocketMetrics('error', {
+                operation: 'websocket_connection',
+                error_type: 'client_error',
+                error_message: error.message,
+            })
+
             connectionSpan.end()
 
             if (zensorWs.readyState === WebSocket.OPEN) {

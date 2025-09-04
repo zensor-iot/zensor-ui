@@ -5,10 +5,10 @@
  * Run this script to test trace generation and export
  */
 
-import { tracer } from './tracing.js'
+import { tracer, httpRequestCounter, httpRequestDuration, httpRequestErrors, recordHttpRequestMetrics } from './tracing.js'
 
 async function testTracing() {
-    console.log('🧪 Testing OpenTelemetry tracing...')
+    console.log('🧪 Testing OpenTelemetry tracing and metrics...')
 
     // Create a test span
     const span = tracer.startSpan('test-trace', {
@@ -47,12 +47,34 @@ async function testTracing() {
         console.log('🏁 Test span ended')
     }
 
-    // Wait a bit for the span to be exported
-    console.log('⏳ Waiting for span export...')
+    // Test metrics
+    console.log('📊 Testing metrics...')
+
+    // Simulate some HTTP requests
+    const testRequests = [
+        { method: 'GET', path: '/api/tenants', statusCode: 200, duration: 150 },
+        { method: 'POST', path: '/api/devices', statusCode: 201, duration: 300 },
+        { method: 'GET', path: '/api/devices/123', statusCode: 404, duration: 50 },
+        { method: 'PUT', path: '/api/devices/123', statusCode: 500, duration: 2000 },
+    ]
+
+    for (const req of testRequests) {
+        recordHttpRequestMetrics(
+            req.method,
+            req.path,
+            req.statusCode,
+            req.duration,
+            { test: 'true' }
+        )
+        console.log(`📈 Recorded metric: ${req.method} ${req.path} - ${req.statusCode}`)
+    }
+
+    // Wait a bit for the span and metrics to be exported
+    console.log('⏳ Waiting for span and metrics export...')
     await new Promise(resolve => setTimeout(resolve, 2000))
 
-    console.log('✨ Tracing test completed!')
-    console.log('📈 Check your OpenTelemetry Collector and configured backend to see the trace')
+    console.log('✨ Tracing and metrics test completed!')
+    console.log('📈 Check your OpenTelemetry Collector and configured backend to see the traces and metrics')
 
     process.exit(0)
 }
