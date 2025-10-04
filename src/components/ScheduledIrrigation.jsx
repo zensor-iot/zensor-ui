@@ -28,11 +28,12 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
     const [executionsLoading, setExecutionsLoading] = useState(false)
     const [executionsError, setExecutionsError] = useState(null)
 
-    // Form state with human-friendly options
+    // Form state with interval scheduling options
     const [formData, setFormData] = useState({
-        frequency: 'daily', // daily, every2days, every3days, weekly
+        scheduleType: 'interval', // Always interval
         time: '06:00', // HH:MM format
-        dayOfWeek: '1', // 1-7 (Monday-Sunday)
+        initialDay: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+        dayInterval: 1, // Days between executions (1-15)
         duration: 5,
         isActive: true
     })
@@ -43,7 +44,15 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
             setLoading(true)
             setError(null)
             const response = await scheduledTasksApi.getScheduledTasks(tenantId, deviceId)
-            setScheduledTasks(response.data || [])
+
+            // Filter out tasks with invalid scheduling data
+            const validTasks = (response.data || []).filter(task => {
+                if (!task) return false
+                // Task is valid if it has either schedule or scheduling field
+                return task.schedule || task.scheduling
+            })
+
+            setScheduledTasks(validTasks)
         } catch (err) {
             setError(err.message)
             console.error('Failed to load scheduled tasks:', err)
@@ -56,53 +65,88 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
         loadScheduledTasks()
     }, [tenantId, deviceId])
 
-    // Convert human-friendly form data to cron expression
-    const formDataToCron = (data) => {
-        const [hour, minute] = data.time.split(':')
+    // Convert human-friendly form data to scheduling configuration
+    const formDataToScheduling = (data) => {
+        if (data.scheduleType === 'interval') {
+            return {
+                type: 'interval',
+                initial_day: `${data.initialDay}T00:00:00Z`,
+                day_interval: data.dayInterval,
+                execution_time: data.time
+            }
+        } else {
+            // Legacy cron support
+            const [hour, minute] = data.time.split(':')
+            let cronExpression
 
-        switch (data.frequency) {
-            case 'daily':
-                return `0 ${minute} ${hour} * * *`
-            case 'weekly':
-                return `0 ${minute} ${hour} * * ${data.dayOfWeek}`
-            case 'every2days':
-                return `0 ${minute} ${hour} */2 * *`
-            case 'every3days':
-                return `0 ${minute} ${hour} */3 * *`
-            default:
-                return `0 ${minute} ${hour} * * *`
+            switch (data.frequency) {
+                case 'daily':
+                    cronExpression = `0 ${minute} ${hour} * * *`
+                    break
+                case 'weekly':
+                    cronExpression = `0 ${minute} ${hour} * * ${data.dayOfWeek}`
+                    break
+                case 'every2days':
+                    cronExpression = `0 ${minute} ${hour} */2 * *`
+                    break
+                case 'every3days':
+                    cronExpression = `0 ${minute} ${hour} */3 * *`
+                    break
+                default:
+                    cronExpression = `0 ${minute} ${hour} * * *`
+            }
+
+            return {
+                type: 'cron',
+                schedule: cronExpression
+            }
         }
     }
 
-    // Convert cron expression to human-friendly form data
-    const cronToFormData = (cron) => {
-        const parts = cron.split(' ')
-        if (parts.length !== 6) return null
-
-        const [second, minute, hour, day, month, dayOfWeekCron] = parts
-
-        // Determine frequency
-        let frequency = 'daily'
-        let dayOfWeek = '1'
-
-        if (dayOfWeekCron !== '*') {
-            frequency = 'weekly'
-            dayOfWeek = dayOfWeekCron
-        } else if (day.startsWith('*/')) {
-            const interval = parseInt(day.substring(2))
-            if (interval === 2) {
-                frequency = 'every2days'
-            } else if (interval === 3) {
-                frequency = 'every3days'
+    // Convert scheduling configuration to human-friendly form data
+    const schedulingToFormData = (scheduling) => {
+        if (scheduling.type === 'interval') {
+            const initialDay = scheduling.initial_day ? scheduling.initial_day.split('T')[0] : new Date().toISOString().split('T')[0]
+            return {
+                scheduleType: 'interval',
+                initialDay,
+                dayInterval: scheduling.day_interval || 1,
+                time: scheduling.execution_time || '06:00',
+                duration: 5, // Will be set separately
+                isActive: true
             }
-        }
+        } else {
+            // Legacy cron support
+            const cron = scheduling.schedule
+            const parts = cron.split(' ')
+            if (parts.length !== 6) return null
 
-        return {
-            frequency,
-            time: `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`,
-            dayOfWeek,
-            duration: 5, // Will be set separately
-            isActive: true
+            const [second, minute, hour, day, month, dayOfWeekCron] = parts
+
+            // Determine frequency
+            let frequency = 'daily'
+            let dayOfWeek = '1'
+
+            if (dayOfWeekCron !== '*') {
+                frequency = 'weekly'
+                dayOfWeek = dayOfWeekCron
+            } else if (day.startsWith('*/')) {
+                const interval = parseInt(day.substring(2))
+                if (interval === 2) {
+                    frequency = 'every2days'
+                } else if (interval === 3) {
+                    frequency = 'every3days'
+                }
+            }
+
+            return {
+                scheduleType: 'cron',
+                frequency,
+                time: `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`,
+                dayOfWeek,
+                duration: 5, // Will be set separately
+                isActive: true
+            }
         }
     }
 
@@ -111,7 +155,7 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
         e.preventDefault()
 
         try {
-            const cronExpression = formDataToCron(formData)
+            const scheduling = formDataToScheduling(formData)
             // Ensure duration is within valid range (1-60 minutes)
             const duration = Math.max(1, Math.min(60, formData.duration))
 
@@ -130,7 +174,7 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
                         wait_for: `${duration}m` // Wait for user's selected duration (1-60 minutes)
                     }
                 ],
-                schedule: cronExpression,
+                scheduling: scheduling,
                 is_active: formData.isActive
             }
 
@@ -145,7 +189,6 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
                     const newTask = {
                         id: createdTask.id || createdTask.uuid || Date.now(),
                         ...taskData,
-                        schedule: cronExpression,
                         is_active: formData.isActive
                     }
                     setScheduledTasks(prev => [...prev, newTask])
@@ -190,7 +233,8 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
 
             const updatedTask = {
                 commands: normalizedCommands,
-                schedule: task.schedule,
+                // Handle both legacy and new formats
+                ...(task.scheduling ? { scheduling: task.scheduling } : { schedule: task.schedule }),
                 is_active: !task.is_active
             }
 
@@ -210,9 +254,11 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
     // Handle edit task
     const handleEdit = (task) => {
         setEditingTask(task)
-        const formDataFromCron = cronToFormData(task.schedule)
+        // Handle both legacy (task.schedule) and new (task.scheduling) formats
+        const schedulingData = task.scheduling || task.schedule
+        const formDataFromScheduling = schedulingToFormData(schedulingData)
         setFormData({
-            ...formDataFromCron,
+            ...formDataFromScheduling,
             duration: getTaskDuration(task),
             isActive: task.is_active
         })
@@ -223,9 +269,12 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
     const handleAddNew = () => {
         setEditingTask(null)
         setFormData({
+            scheduleType: 'interval',
             frequency: 'daily',
             time: '06:00',
             dayOfWeek: '1',
+            initialDay: new Date().toISOString().split('T')[0],
+            dayInterval: 1,
             duration: 5,
             isActive: true
         })
@@ -237,53 +286,126 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
         setShowModal(false)
         setEditingTask(null)
         setFormData({
+            scheduleType: 'interval',
             frequency: 'daily',
             time: '06:00',
             dayOfWeek: '1',
+            initialDay: new Date().toISOString().split('T')[0],
+            dayInterval: 1,
             duration: 5,
             isActive: true
         })
         setError(null)
     }
 
-    // Parse cron expression to human readable format
-    const parseCronExpression = (cron) => {
+    // Parse scheduling configuration to human readable format
+    const parseScheduleExpression = (scheduling) => {
         try {
-            if (!cron || typeof cron !== 'string') {
+            // Handle null, undefined, or empty values
+            if (!scheduling || scheduling === null || scheduling === undefined) {
+                console.warn('Empty or undefined scheduling data:', scheduling)
+                return 'Schedule not set'
+            }
+
+            // Handle legacy format where schedule is a direct string
+            if (typeof scheduling === 'string') {
+                const cron = scheduling
+                if (!cron || cron.trim() === '') {
+                    console.warn('Empty cron expression:', cron)
+                    return 'Schedule not set'
+                }
+
+                const parts = cron.split(' ')
+                if (parts.length !== 6) return 'Invalid schedule'
+
+                const [second, minute, hour, day, month, dayOfWeek] = parts
+
+                // Simple parsing for common patterns
+                if (minute === '0' && hour === '0' && day === '*' && month === '*' && dayOfWeek === '*') {
+                    return 'Daily at midnight'
+                }
+                if (minute === '0' && hour === '6' && day === '*' && month === '*' && dayOfWeek === '*') {
+                    return 'Daily at 6:00 AM'
+                }
+                if (minute === '0' && hour === '12' && day === '*' && month === '*' && dayOfWeek === '*') {
+                    return 'Daily at 12:00 PM'
+                }
+                if (minute === '0' && hour === '18' && day === '*' && month === '*' && dayOfWeek === '*') {
+                    return 'Daily at 6:00 PM'
+                }
+                if (minute === '0' && hour === '*' && day === '*' && month === '*' && dayOfWeek === '*') {
+                    return 'Every hour'
+                }
+                if (minute === '0' && hour === '0' && day === '1' && month === '*' && dayOfWeek === '*') {
+                    return 'Monthly on the 1st'
+                }
+
+                // Custom format
+                const hourStr = hour === '*' ? 'every hour' : `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+                const dayStr = day === '*' ? 'every day' : `day ${day}`
+                return `${hourStr} on ${dayStr}`
+            }
+
+            // Handle new scheduling object format
+            if (!scheduling || typeof scheduling !== 'object') {
                 return 'Invalid schedule'
             }
 
-            const parts = cron.split(' ')
-            if (parts.length !== 6) return 'Invalid schedule'
+            if (scheduling.type === 'interval') {
+                const time = scheduling.execution_time || '06:00'
+                const [hour, minute] = time.split(':')
+                const timeDisplay = new Date(2000, 0, 1, parseInt(hour), parseInt(minute)).toLocaleTimeString([], {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                })
 
-            const [second, minute, hour, day, month, dayOfWeek] = parts
+                const interval = scheduling.day_interval || 1
+                if (interval === 1) {
+                    return `Daily at ${timeDisplay}`
+                } else {
+                    return `Every ${interval} days at ${timeDisplay}`
+                }
+            } else if (scheduling.type === 'cron') {
+                const cron = scheduling.schedule
+                if (!cron || typeof cron !== 'string') {
+                    return 'Invalid schedule'
+                }
 
-            // Simple parsing for common patterns
-            if (minute === '0' && hour === '0' && day === '*' && month === '*' && dayOfWeek === '*') {
-                return 'Daily at midnight'
-            }
-            if (minute === '0' && hour === '6' && day === '*' && month === '*' && dayOfWeek === '*') {
-                return 'Daily at 6:00 AM'
-            }
-            if (minute === '0' && hour === '12' && day === '*' && month === '*' && dayOfWeek === '*') {
-                return 'Daily at 12:00 PM'
-            }
-            if (minute === '0' && hour === '18' && day === '*' && month === '*' && dayOfWeek === '*') {
-                return 'Daily at 6:00 PM'
-            }
-            if (minute === '0' && hour === '*' && day === '*' && month === '*' && dayOfWeek === '*') {
-                return 'Every hour'
-            }
-            if (minute === '0' && hour === '0' && day === '1' && month === '*' && dayOfWeek === '*') {
-                return 'Monthly on the 1st'
+                const parts = cron.split(' ')
+                if (parts.length !== 6) return 'Invalid schedule'
+
+                const [second, minute, hour, day, month, dayOfWeek] = parts
+
+                // Simple parsing for common patterns
+                if (minute === '0' && hour === '0' && day === '*' && month === '*' && dayOfWeek === '*') {
+                    return 'Daily at midnight'
+                }
+                if (minute === '0' && hour === '6' && day === '*' && month === '*' && dayOfWeek === '*') {
+                    return 'Daily at 6:00 AM'
+                }
+                if (minute === '0' && hour === '12' && day === '*' && month === '*' && dayOfWeek === '*') {
+                    return 'Daily at 12:00 PM'
+                }
+                if (minute === '0' && hour === '18' && day === '*' && month === '*' && dayOfWeek === '*') {
+                    return 'Daily at 6:00 PM'
+                }
+                if (minute === '0' && hour === '*' && day === '*' && month === '*' && dayOfWeek === '*') {
+                    return 'Every hour'
+                }
+                if (minute === '0' && hour === '0' && day === '1' && month === '*' && dayOfWeek === '*') {
+                    return 'Monthly on the 1st'
+                }
+
+                // Custom format
+                const hourStr = hour === '*' ? 'every hour' : `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+                const dayStr = day === '*' ? 'every day' : `day ${day}`
+                return `${hourStr} on ${dayStr}`
             }
 
-            // Custom format
-            const hourStr = hour === '*' ? 'every hour' : `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
-            const dayStr = day === '*' ? 'every day' : `day ${day}`
-            return `${hourStr} on ${dayStr}`
+            return 'Invalid schedule'
         } catch (error) {
-            console.error('Error parsing cron expression:', error, cron)
+            console.error('Error parsing schedule expression:', error, scheduling)
             return 'Invalid schedule'
         }
     }
@@ -337,19 +459,29 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
                 hour12: true
             })
 
-            switch (data.frequency) {
-                case 'daily':
+            if (data.scheduleType === 'interval') {
+                const interval = data.dayInterval || 1
+                if (interval === 1) {
                     return `Daily at ${timeDisplay}`
-                case 'weekly':
-                    const days = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-                    const dayName = days[parseInt(data.dayOfWeek)] || 'Sunday'
-                    return `Weekly on ${dayName}s at ${timeDisplay}`
-                case 'every2days':
-                    return `Every 2 days at ${timeDisplay}`
-                case 'every3days':
-                    return `Every 3 days at ${timeDisplay}`
-                default:
-                    return `Daily at ${timeDisplay}`
+                } else {
+                    return `Every ${interval} days at ${timeDisplay}`
+                }
+            } else {
+                // Legacy cron support
+                switch (data.frequency) {
+                    case 'daily':
+                        return `Daily at ${timeDisplay}`
+                    case 'weekly':
+                        const days = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                        const dayName = days[parseInt(data.dayOfWeek)] || 'Sunday'
+                        return `Weekly on ${dayName}s at ${timeDisplay}`
+                    case 'every2days':
+                        return `Every 2 days at ${timeDisplay}`
+                    case 'every3days':
+                        return `Every 3 days at ${timeDisplay}`
+                    default:
+                        return `Daily at ${timeDisplay}`
+                }
             }
         } catch (error) {
             console.error('Error generating schedule description:', error, data)
@@ -444,7 +576,7 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
                                     <div className="task-header">
                                         <div className="task-schedule">
                                             <Clock size={16} />
-                                            <span>{parseCronExpression(task.schedule)}</span>
+                                            <span>{parseScheduleExpression(task.scheduling || task.schedule)}</span>
                                         </div>
                                         <div className="task-status">
                                             <div
@@ -525,52 +657,152 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
                                 <div className="preview-text">{getScheduleDescription(formData)}</div>
                             </div>
 
-                            {/* Frequency Selection */}
+                            {/* Initial Date Selection - Always Visible */}
                             <div className="form-group">
-                                <label>Frequency</label>
+                                <label htmlFor="initialDay">
+                                    <Calendar size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                                    Start Date
+                                </label>
+                                <input
+                                    id="initialDay"
+                                    type="date"
+                                    value={formData.initialDay}
+                                    onChange={(e) => setFormData({ ...formData, initialDay: e.target.value })}
+                                    className="form-input"
+                                    style={{
+                                        padding: '12px 16px',
+                                        border: '2px solid #e1e5e9',
+                                        borderRadius: '8px',
+                                        fontSize: '16px',
+                                        backgroundColor: '#fff',
+                                        color: '#333',
+                                        width: '100%',
+                                        boxSizing: 'border-box',
+                                        marginBottom: '8px'
+                                    }}
+                                    required
+                                />
+                                <div style={{
+                                    fontSize: '13px',
+                                    color: '#666',
+                                    marginTop: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                }}>
+                                    <Calendar size={12} />
+                                    <span>Choose when your irrigation schedule should begin</span>
+                                </div>
+                            </div>
+
+                            {/* Schedule Type Selection */}
+                            <div className="form-group">
+                                <label>Schedule Type</label>
                                 <div className="frequency-options">
                                     <label className="frequency-option">
                                         <input
                                             type="radio"
-                                            name="frequency"
-                                            value="daily"
-                                            checked={formData.frequency === 'daily'}
-                                            onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                                            name="scheduleType"
+                                            value="interval"
+                                            checked={formData.scheduleType === 'interval'}
+                                            onChange={(e) => setFormData({ ...formData, scheduleType: e.target.value })}
                                         />
-                                        <span>Daily</span>
+                                        <span>Interval (Recommended)</span>
                                     </label>
                                     <label className="frequency-option">
                                         <input
                                             type="radio"
-                                            name="frequency"
-                                            value="every2days"
-                                            checked={formData.frequency === 'every2days'}
-                                            onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                                            name="scheduleType"
+                                            value="cron"
+                                            checked={formData.scheduleType === 'cron'}
+                                            onChange={(e) => setFormData({ ...formData, scheduleType: e.target.value })}
                                         />
-                                        <span>Every 2 days</span>
-                                    </label>
-                                    <label className="frequency-option">
-                                        <input
-                                            type="radio"
-                                            name="frequency"
-                                            value="every3days"
-                                            checked={formData.frequency === 'every3days'}
-                                            onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                                        />
-                                        <span>Every 3 days</span>
-                                    </label>
-                                    <label className="frequency-option">
-                                        <input
-                                            type="radio"
-                                            name="frequency"
-                                            value="weekly"
-                                            checked={formData.frequency === 'weekly'}
-                                            onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                                        />
-                                        <span>Weekly</span>
+                                        <span>Cron (Advanced)</span>
                                     </label>
                                 </div>
                             </div>
+
+                            {/* Interval Scheduling Fields */}
+                            {formData.scheduleType === 'interval' && (
+                                <>
+
+                                    {/* Day Interval Selection */}
+                                    <div className="form-group">
+                                        <label htmlFor="dayInterval">Day Interval</label>
+                                        <div className="duration-slider-container">
+                                            <input
+                                                id="dayInterval"
+                                                type="range"
+                                                min="1"
+                                                max="30"
+                                                value={formData.dayInterval}
+                                                onChange={(e) => setFormData({ ...formData, dayInterval: parseInt(e.target.value) })}
+                                                className="duration-slider"
+                                                required
+                                            />
+                                            <div className="duration-value">
+                                                <span>{formData.dayInterval}</span>
+                                            </div>
+                                        </div>
+                                        <div className="duration-display">
+                                            <Calendar size={14} />
+                                            <span>Will execute every {formData.dayInterval} day{formData.dayInterval !== 1 ? 's' : ''}</span>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Cron Scheduling Fields */}
+                            {formData.scheduleType === 'cron' && (
+                                <>
+                                    {/* Frequency Selection */}
+                                    <div className="form-group">
+                                        <label>Frequency</label>
+                                        <div className="frequency-options">
+                                            <label className="frequency-option">
+                                                <input
+                                                    type="radio"
+                                                    name="frequency"
+                                                    value="daily"
+                                                    checked={formData.frequency === 'daily'}
+                                                    onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                                                />
+                                                <span>Daily</span>
+                                            </label>
+                                            <label className="frequency-option">
+                                                <input
+                                                    type="radio"
+                                                    name="frequency"
+                                                    value="every2days"
+                                                    checked={formData.frequency === 'every2days'}
+                                                    onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                                                />
+                                                <span>Every 2 days</span>
+                                            </label>
+                                            <label className="frequency-option">
+                                                <input
+                                                    type="radio"
+                                                    name="frequency"
+                                                    value="every3days"
+                                                    checked={formData.frequency === 'every3days'}
+                                                    onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                                                />
+                                                <span>Every 3 days</span>
+                                            </label>
+                                            <label className="frequency-option">
+                                                <input
+                                                    type="radio"
+                                                    name="frequency"
+                                                    value="weekly"
+                                                    checked={formData.frequency === 'weekly'}
+                                                    onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                                                />
+                                                <span>Weekly</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             {/* Time Selection */}
                             <div className="form-group">
@@ -585,8 +817,8 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
                                 />
                             </div>
 
-                            {/* Day Selection (Weekly) */}
-                            {formData.frequency === 'weekly' && (
+                            {/* Day Selection (Weekly Cron) */}
+                            {formData.scheduleType === 'cron' && formData.frequency === 'weekly' && (
                                 <div className="form-group">
                                     <label htmlFor="dayOfWeek">Day of Week</label>
                                     <select
@@ -675,7 +907,7 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
                             <div className="task-info-header">
                                 <div className="task-schedule">
                                     <Clock size={16} />
-                                    <span>{parseCronExpression(selectedTask.schedule)}</span>
+                                    <span>{parseScheduleExpression(selectedTask.scheduling || selectedTask.schedule)}</span>
                                 </div>
                                 <div className="task-duration">
                                     <Droplets size={14} />

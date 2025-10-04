@@ -32,18 +32,98 @@ dev:
         fi
     fi
     
-    # Set API base URL for the React app
-    export VITE_API_BASE_URL=http://localhost:3000
+    # Build client first to ensure latest changes are included
+    echo "🏗️  Building client with latest changes..."
+    npm run build:client
     
-    echo "🌐 Starting React development server..."
+    # Set API base URL for the React app
+    export VITE_API_BASE_URL=http://localhost:3000/v1
+    
+    echo "🌐 Starting Express SSR server..."
     echo "📱 Application will be available at: http://localhost:5173"
     echo "🔗 Mock server available at: http://localhost:3000"
     echo "🔌 WebSocket available at: ws://localhost:3000/ws/device-messages"
     echo ""
     echo "💡 Press Ctrl+C to stop both servers"
+    echo "🔄 To see latest changes, run 'just rebuild' in another terminal"
     
-    # Start the React development server
+    # Start the Express SSR server
     npm run dev
+
+rebuild:
+    #!/bin/bash
+    echo "🔄 Rebuilding client with latest changes..."
+    npm run build:client
+    echo "✅ Client rebuilt successfully!"
+    echo "🔄 Refresh your browser to see the latest changes"
+
+watch:
+    #!/bin/bash
+    echo "👀 Starting full development mode with auto-rebuild and server restart..."
+    echo "💡 This will automatically rebuild the client and restart the server when you save files"
+    echo ""
+    
+    # Check if mock server is already running on port 3000
+    if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        echo "✅ Mock server already running on port 3000"
+    else
+        echo "🔧 Starting mock server in background..."
+        node custom-mock-server.js > mock-server.log 2>&1 &
+        MOCK_SERVER_PID=$!
+        echo "📝 Mock server started with PID: $MOCK_SERVER_PID"
+        
+        # Wait a moment for the server to start
+        sleep 2
+        
+        # Check if server started successfully
+        if curl -s http://localhost:3000/healthz >/dev/null 2>&1; then
+            echo "✅ Mock server started successfully"
+        else
+            echo "❌ Failed to start mock server"
+            kill $MOCK_SERVER_PID 2>/dev/null
+            exit 1
+        fi
+    fi
+    
+    # Build client first
+    echo "🏗️  Building client with latest changes..."
+    npm run build:client
+    
+    # Set API base URL for the React app
+    export VITE_API_BASE_URL=http://localhost:3000/v1
+    
+    echo "🌐 Starting Express SSR server with auto-restart..."
+    echo "📱 Application will be available at: http://localhost:5173"
+    echo "🔗 Mock server available at: http://localhost:3000"
+    echo "🔌 WebSocket available at: ws://localhost:3000/ws/device-messages"
+    echo ""
+    echo "💡 Press Ctrl+C to stop all servers"
+    echo "🔄 Server will auto-restart when you save files"
+    
+    # Install nodemon if not already installed
+    if ! command -v nodemon &> /dev/null; then
+        echo "📦 Installing nodemon for file watching..."
+        npm install -g nodemon
+    fi
+    
+    # Watch for changes and restart both client build and server
+    nodemon --watch src/ --watch server/ --ext js,jsx,ts,tsx,css --exec "npm run build:client && npm run dev" --delay 1
+
+watch-client:
+    #!/bin/bash
+    echo "👀 Watching client files only (no server restart)..."
+    echo "💡 This will automatically rebuild the client when you save files"
+    echo "🔄 Run this in a separate terminal while 'just dev' is running"
+    echo ""
+    
+    # Install nodemon if not already installed
+    if ! command -v nodemon &> /dev/null; then
+        echo "📦 Installing nodemon for file watching..."
+        npm install -g nodemon
+    fi
+    
+    # Watch for changes in src/ and rebuild client only
+    nodemon --watch src/ --ext js,jsx,ts,tsx,css --exec "npm run build:client" --delay 1
 
 mock-only:
     #!/bin/bash

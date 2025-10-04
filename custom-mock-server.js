@@ -130,7 +130,12 @@ const mockData = {
                     wait_for: "5m" // 5 minutes duration
                 }
             ],
-            schedule: '0 0 6 * * *',
+            scheduling: {
+                type: 'interval',
+                initial_day: '2024-01-15T00:00:00Z',
+                day_interval: 1,
+                execution_time: '06:00'
+            },
             is_active: true
         },
         {
@@ -150,8 +155,38 @@ const mockData = {
                     wait_for: "3m" // 3 minutes duration
                 }
             ],
-            schedule: '0 0 18 * * *',
+            scheduling: {
+                type: 'interval',
+                initial_day: '2024-01-15T00:00:00Z',
+                day_interval: 1,
+                execution_time: '18:00'
+            },
             is_active: false
+        },
+        {
+            id: 'task-003',
+            device_id: '123e4567-e89b-12d3-a456-426614174002',
+            commands: [
+                {
+                    index: 1,
+                    value: 1, // Activate relay
+                    priority: "NORMAL",
+                    wait_for: "0s"
+                },
+                {
+                    index: 1,
+                    value: 0, // Deactivate relay
+                    priority: "NORMAL",
+                    wait_for: "2m" // 2 minutes duration
+                }
+            ],
+            scheduling: {
+                type: 'interval',
+                initial_day: '2024-01-16T00:00:00Z',
+                day_interval: 2,
+                execution_time: '12:00'
+            },
+            is_active: true
         }
     ],
     taskExecutions: [
@@ -555,6 +590,9 @@ app.get('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks', (req, res) =>
     const paginatedTasks = tasks.slice(offset, offset + parseInt(limit));
     const totalPages = Math.ceil(tasks.length / parseInt(limit));
 
+    console.log('📅 Scheduled tasks request for device:', req.params.deviceId);
+    console.log('📅 Returning tasks:', JSON.stringify(paginatedTasks, null, 2));
+
     res.json({
         data: paginatedTasks,
         pagination: {
@@ -567,19 +605,27 @@ app.get('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks', (req, res) =>
 });
 
 app.post('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks', (req, res) => {
-    const { commands, schedule, is_active = true } = req.body;
+    const { commands, scheduling, schedule, is_active = true } = req.body;
 
-    if (!commands || !schedule) {
-        return res.status(400).json({ message: 'Commands and schedule are required' });
+    if (!commands || (!scheduling && !schedule)) {
+        return res.status(400).json({ message: 'Commands and scheduling (or schedule) are required' });
     }
 
     const newTask = {
         id: uuidv4(),
         device_id: req.params.deviceId,
         commands,
-        schedule,
-        is_active
+        is_active,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
     };
+
+    // Handle both new scheduling format and legacy schedule format
+    if (scheduling) {
+        newTask.scheduling = scheduling;
+    } else {
+        newTask.schedule = schedule;
+    }
 
     mockData.scheduledTasks.push(newTask);
     res.status(201).json(newTask);
@@ -606,7 +652,10 @@ app.put('/v1/tenants/:tenantId/devices/:deviceId/scheduled-tasks/:id', (req, res
         return res.status(404).json({ message: 'Scheduled task not found' });
     }
 
+    // Update task with new data
     Object.assign(task, req.body);
+    task.updated_at = new Date().toISOString();
+
     res.json(task);
 });
 

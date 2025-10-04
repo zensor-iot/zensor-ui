@@ -1,9 +1,7 @@
 // API Configuration for Express.js proxy
 const config = {
-    // Local API base URL (proxied through Express server)
-    apiBaseUrl: typeof window !== 'undefined'
-        ? `${window.location.protocol}//${window.location.host}/api`
-        : '/api',
+    // Local API base URL (pointing directly to mock server)
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/v1',
 
     // Grafana base URL
     grafanaBaseUrl: import.meta.env.VITE_GRAFANA_BASE_URL || 'https://cardamomo.zensor-iot.net',
@@ -20,7 +18,7 @@ const config = {
         return 'ws://localhost:5173'
     },
 
-    // API endpoints (now relative to proxy)
+    // API endpoints (relative to base URL)
     endpoints: {
         tenants: '/tenants',
         devices: '/devices',
@@ -57,13 +55,18 @@ export const scheduledTasksApi = {
     // Get all scheduled tasks for a device
     async getScheduledTasks(tenantId, deviceId, page = 1, limit = 10) {
         const url = buildApiEndpoint('scheduledTasks', tenantId, deviceId)
-        const response = await fetch(`${url}?page=${page}&limit=${limit}`)
+        const fullUrl = `${url}?page=${page}&limit=${limit}`
+        console.log('🌐 API call to:', fullUrl)
+        
+        const response = await fetch(fullUrl)
 
         if (!response.ok) {
             throw new Error(`Failed to fetch scheduled tasks: ${response.status}`)
         }
 
-        return response.json()
+        const data = await response.json()
+        console.log('🌐 API response:', data)
+        return data
     },
 
     // Create a new scheduled task
