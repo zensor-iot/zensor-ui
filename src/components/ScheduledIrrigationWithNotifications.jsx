@@ -42,7 +42,7 @@ const ScheduledIrrigationWithNotifications = ({ tenantId, deviceId, deviceName }
     const [formData, setFormData] = useState({
         scheduleType: 'interval', // Always interval
         time: '06:00', // HH:MM format
-        initialDay: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+        initialDay: new Date().toISOString().split('T')[0], // Today's date (YYYY-MM-DD format)
         dayInterval: 1, // Days between executions (1-15)
         duration: 5,
         isActive: true
@@ -429,7 +429,7 @@ const ScheduledIrrigationWithNotifications = ({ tenantId, deviceId, deviceName }
         setFormData({
             scheduleType: 'interval',
             time: '06:00',
-            initialDay: new Date().toISOString().split('T')[0],
+            initialDay: new Date().toISOString().split('T')[0], // Today's date
             dayInterval: 1,
             duration: 5,
             isActive: true
@@ -443,7 +443,7 @@ const ScheduledIrrigationWithNotifications = ({ tenantId, deviceId, deviceName }
         setFormData({
             scheduleType: 'interval',
             time: '06:00',
-            initialDay: new Date().toISOString().split('T')[0],
+            initialDay: new Date().toISOString().split('T')[0], // Today's date
             dayInterval: 1,
             duration: 5,
             isActive: true
@@ -584,25 +584,103 @@ const ScheduledIrrigationWithNotifications = ({ tenantId, deviceId, deviceName }
             const now = new Date()
             const intervalDays = formData.dayInterval || 1
 
-            // Calculate the next execution
+            // The first execution is always the initial date
             let nextExecution = new Date(initialDate)
 
-            // If the initial date is in the past, calculate the next occurrence
+            // Only advance to the next occurrence if the initial date is in the past
             while (nextExecution <= now) {
                 nextExecution.setDate(nextExecution.getDate() + intervalDays)
             }
 
-            return nextExecution.toLocaleString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
+            // Format the date nicely
+            const isToday = nextExecution.toDateString() === now.toDateString()
+            const isTomorrow = nextExecution.toDateString() === new Date(now.getTime() + 24 * 60 * 60 * 1000).toDateString()
+
+            let dateStr
+            if (isToday) {
+                dateStr = 'Today'
+            } else if (isTomorrow) {
+                dateStr = 'Tomorrow'
+            } else {
+                dateStr = nextExecution.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                })
+            }
+
+            const timeStr = nextExecution.toLocaleTimeString('en-US', {
                 hour: 'numeric',
                 minute: '2-digit',
                 hour12: true
             })
+
+            return `${dateStr} at ${timeStr}`
         } catch (error) {
             return 'Invalid date'
+        }
+    }
+
+    // Calculate next execution datetime from task scheduling data
+    const getTaskNextExecution = (scheduling) => {
+        try {
+            if (!scheduling) return 'No schedule'
+
+            // Handle legacy format where schedule is a direct string
+            if (typeof scheduling === 'string') {
+                return 'Legacy schedule'
+            }
+
+            // Handle new scheduling object format
+            if (scheduling.type === 'interval') {
+                const initialDate = new Date(scheduling.initial_day)
+                const [hours, minutes] = scheduling.execution_time.split(':').map(Number)
+
+                // Set the time for the initial date
+                initialDate.setHours(hours, minutes, 0, 0)
+
+                const now = new Date()
+                const intervalDays = scheduling.day_interval || 1
+
+                // The first execution is always the initial date
+                let nextExecution = new Date(initialDate)
+
+                // Only advance to the next occurrence if the initial date is in the past
+                while (nextExecution <= now) {
+                    nextExecution.setDate(nextExecution.getDate() + intervalDays)
+                }
+
+                // Format the date nicely
+                const isToday = nextExecution.toDateString() === now.toDateString()
+                const isTomorrow = nextExecution.toDateString() === new Date(now.getTime() + 24 * 60 * 60 * 1000).toDateString()
+
+                let dateStr
+                if (isToday) {
+                    dateStr = 'Today'
+                } else if (isTomorrow) {
+                    dateStr = 'Tomorrow'
+                } else {
+                    dateStr = nextExecution.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    })
+                }
+
+                const timeStr = nextExecution.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                })
+
+                return `${dateStr} at ${timeStr}`
+            }
+
+            return 'Unknown schedule type'
+        } catch (error) {
+            return 'Invalid schedule'
         }
     }
 
@@ -783,9 +861,9 @@ const ScheduledIrrigationWithNotifications = ({ tenantId, deviceId, deviceName }
                                                 <span>{parseScheduleExpression(task.scheduling || task.schedule)}</span>
                                             </div>
                                             <div className="task-status">
-                                                <div
-                                                    className={`status-indicator ${task.is_active ? 'active' : 'inactive'}`}
-                                                />
+                                                <span className="status-emoji">
+                                                    {task.is_active ? '✅' : '📵'}
+                                                </span>
                                                 <span>{task.is_active ? 'Active' : 'Inactive'}</span>
                                             </div>
                                         </div>
@@ -794,6 +872,10 @@ const ScheduledIrrigationWithNotifications = ({ tenantId, deviceId, deviceName }
                                             <div className="task-duration">
                                                 <Droplets size={14} />
                                                 <span>{getTaskDuration(task)} minutes</span>
+                                            </div>
+                                            <div className="task-next-execution">
+                                                <Calendar size={14} />
+                                                <span>Next: {getTaskNextExecution(task.scheduling || task.schedule)}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -874,6 +956,7 @@ const ScheduledIrrigationWithNotifications = ({ tenantId, deviceId, deviceName }
                                     value={formData.initialDay}
                                     onChange={(e) => setFormData({ ...formData, initialDay: e.target.value })}
                                     className="form-input"
+                                    min={new Date().toISOString().split('T')[0]}
                                     style={{
                                         padding: '12px 16px',
                                         border: '2px solid #e1e5e9',

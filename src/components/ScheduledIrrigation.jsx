@@ -579,9 +579,9 @@ const ScheduledIrrigation = ({ tenantId, deviceId, deviceName }) => {
                                             <span>{parseScheduleExpression(task.scheduling || task.schedule)}</span>
                                         </div>
                                         <div className="task-status">
-                                            <div
-                                                className={`status-indicator ${task.is_active ? 'active' : 'inactive'}`}
-                                            />
+                                            <span className="status-emoji">
+                                                {task.is_active ? '✅' : '📵'}
+                                            </span>
                                             <span>{task.is_active ? 'Active' : 'Inactive'}</span>
                                         </div>
                                     </div>

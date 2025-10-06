@@ -2027,13 +2027,13 @@ body {
 
 .scheduled-task-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   padding: 1rem;
   border: 1px solid var(--color-gray-200);
   border-radius: var(--border-radius);
   background-color: var(--color-gray-50);
   transition: var(--transition);
+  position: relative;
 }
 
 .scheduled-task-item:hover {
@@ -2043,13 +2043,14 @@ body {
 
 .task-info {
   flex: 1;
+  width: 100%;
 }
 
 .task-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
 }
 
 .task-schedule {
@@ -2058,10 +2059,13 @@ body {
   gap: 0.5rem;
   font-weight: 500;
   color: var(--color-gray-900);
+  font-size: 1rem;
+  flex: 1;
 }
 
 .task-schedule svg {
   color: var(--color-primary);
+  flex-shrink: 0;
 }
 
 .task-status {
@@ -2070,24 +2074,63 @@ body {
   gap: 0.5rem;
   font-size: 0.875rem;
   color: var(--color-gray-600);
+  width: fit-content;
+}
+
+.task-status .status-emoji {
+  font-size: 1rem;
+  flex-shrink: 0;
 }
 
 .task-details {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
   font-size: 0.875rem;
   color: var(--color-gray-600);
+  margin-bottom: 1rem;
+}
+
+.task-duration {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--color-blue-50);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  color: var(--color-blue-700);
+  width: 100%;
 }
 
 .task-duration svg {
-  color: var(--color-primary);
+  color: var(--color-blue-600);
+  flex-shrink: 0;
+}
+
+.task-next-execution {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--color-gray-50);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  color: var(--color-gray-700);
+  width: 100%;
+}
+
+.task-next-execution svg {
+  color: var(--color-gray-600);
+  flex-shrink: 0;
 }
 
 .task-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: auto;
 }
 
 .toggle-btn,
