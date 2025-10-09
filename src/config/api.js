@@ -1,7 +1,8 @@
 // API Configuration for Express.js proxy
 const config = {
-    // Local API base URL (pointing directly to mock server)
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/v1',
+    // API base URL - uses /api proxy which forwards to Zensor API with server-side API key injection
+    // In production, this should always be /api (relative URL) to use the Express proxy
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/api',
 
     // Grafana base URL
     grafanaBaseUrl: import.meta.env.VITE_GRAFANA_BASE_URL || 'https://cardamomo.zensor-iot.net',
@@ -57,7 +58,7 @@ export const scheduledTasksApi = {
         const url = buildApiEndpoint('scheduledTasks', tenantId, deviceId)
         const fullUrl = `${url}?page=${page}&limit=${limit}`
         console.log('🌐 API call to:', fullUrl)
-        
+
         const response = await fetch(fullUrl)
 
         if (!response.ok) {
