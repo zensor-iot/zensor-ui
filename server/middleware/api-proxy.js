@@ -113,6 +113,23 @@ export function setupApiProxy(app) {
             // Merge user headers with existing headers
             Object.assign(headersWithTrace, userHeaders)
 
+            // Log remote-* headers received
+            const remoteHeaders = {}
+            if (req.headers['remote-user']) remoteHeaders['remote-user'] = req.headers['remote-user']
+            if (req.headers['remote-name']) remoteHeaders['remote-name'] = req.headers['remote-name']
+            if (req.headers['remote-email']) remoteHeaders['remote-email'] = req.headers['remote-email']
+            if (req.headers['remote-role']) remoteHeaders['remote-role'] = req.headers['remote-role']
+
+            if (Object.keys(remoteHeaders).length > 0) {
+                const logger = createLogger({ operation: 'api_proxy' })
+                logger.info({
+                    event: 'remote_headers_received',
+                    remoteHeaders,
+                    method: req.method,
+                    path: req.path
+                }, 'Remote authentication headers received')
+            }
+
             // Inject server API key for all requests
             if (ZENSOR_API_KEY) {
                 headersWithTrace['X-Auth-Token'] = ZENSOR_API_KEY
