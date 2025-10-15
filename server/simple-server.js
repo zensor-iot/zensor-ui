@@ -248,7 +248,7 @@ async function createSimpleServer() {
 
             // Forward response
             const data = await response.text()
-            res.status(response.status)
+            res.status(Math.floor(response.status))
 
             // Set span status based on response
             if (response.status >= 400) {
