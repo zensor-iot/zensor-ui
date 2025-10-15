@@ -1,13 +1,16 @@
 import express from 'express'
 import { tracer, injectTraceContext, addHttpSpanAttributes, addErrorSpanAttributes, recordHttpRequestMetrics } from '../tracing.js'
 import { context, trace } from '@opentelemetry/api'
+import { logSystemEvent, createLogger } from '../logger.js'
 
 // Configuration
 const ZENSOR_API_URL = process.env.ZENSOR_API_URL || 'http://localhost:3000'
 const ZENSOR_API_KEY = process.env.ZENSOR_API_KEY || ''
 
 export function setupApiProxy(app) {
-    console.log(`🔗 Setting up API proxy to: ${ZENSOR_API_URL}`)
+    logSystemEvent('api_proxy_middleware_setup', {
+        targetUrl: ZENSOR_API_URL
+    })
 
     // Parse JSON bodies
     app.use(express.json())
@@ -40,7 +43,13 @@ export function setupApiProxy(app) {
 
             // Log requests in development
             if (process.env.NODE_ENV !== 'production') {
-                console.log(`🔄 Proxying ${req.method} ${req.path} -> ${targetUrl}`)
+                const logger = createLogger({ operation: 'api_proxy' })
+                logger.debug({
+                    event: 'api_proxy_request',
+                    method: req.method,
+                    path: req.path,
+                    targetUrl
+                }, `Proxying ${req.method} ${req.path} -> ${targetUrl}`)
             }
 
             // Prepare headers with trace context injection
@@ -83,6 +92,9 @@ export function setupApiProxy(app) {
             if (req.headers['x-real-ip']) {
                 userHeaders['X-Real-IP'] = req.headers['x-real-ip']
             }
+            if (req.headers['x-user-role']) {
+                userHeaders['X-User-Role'] = req.headers['x-user-role']
+            }
 
             // Legacy headers (for backward compatibility)
             if (req.headers['remote-user']) {
@@ -93,6 +105,9 @@ export function setupApiProxy(app) {
             }
             if (req.headers['remote-email']) {
                 userHeaders['X-User-Email'] = req.headers['remote-email']
+            }
+            if (req.headers['remote-role']) {
+                userHeaders['X-User-Role'] = req.headers['remote-role']
             }
 
             // Merge user headers with existing headers
@@ -106,12 +121,16 @@ export function setupApiProxy(app) {
 
             // Add trace context headers for debugging
             if (process.env.NODE_ENV !== 'production') {
-                console.log('📤 Trace context headers:', {
-                    'b3-trace-id': headersWithTrace['b3-trace-id'] || 'not set',
-                    'b3-span-id': headersWithTrace['b3-span-id'] || 'not set',
-                    'b3-parent-span-id': headersWithTrace['b3-parent-span-id'] || 'not set',
-                    'b3-sampled': headersWithTrace['b3-sampled'] || 'not set',
-                })
+                const logger = createLogger({ operation: 'api_proxy' })
+                logger.debug({
+                    event: 'trace_context_headers',
+                    traceHeaders: {
+                        'b3-trace-id': headersWithTrace['b3-trace-id'] || 'not set',
+                        'b3-span-id': headersWithTrace['b3-span-id'] || 'not set',
+                        'b3-parent-span-id': headersWithTrace['b3-parent-span-id'] || 'not set',
+                        'b3-sampled': headersWithTrace['b3-sampled'] || 'not set',
+                    }
+                }, 'Trace context headers')
             }
 
             // Prepare fetch options
@@ -155,7 +174,7 @@ export function setupApiProxy(app) {
             // Set response headers
             res.set('Access-Control-Allow-Origin', '*')
             res.set('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-            res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Auth-Token, X-User-ID, X-User-Email, X-User-Name, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email')
+            res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Auth-Token, X-User-ID, X-User-Email, X-User-Name, X-User-Role, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email, Remote-Role')
 
             // Forward response
             const data = await response.text()
@@ -201,7 +220,7 @@ export function setupApiProxy(app) {
     app.options('/api/*', (req, res) => {
         res.header('Access-Control-Allow-Origin', '*')
         res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Auth-Token, X-User-ID, X-User-Email, X-User-Name, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email')
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Auth-Token, X-User-ID, X-User-Email, X-User-Name, X-User-Role, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email, Remote-Role')
         res.sendStatus(200)
     })
 
@@ -215,5 +234,7 @@ export function setupApiProxy(app) {
         })
     })
 
-    console.log('✅ API proxy configured successfully')
+    logSystemEvent('api_proxy_configured', {
+        targetUrl: ZENSOR_API_URL
+    })
 } 

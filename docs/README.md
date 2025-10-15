@@ -10,6 +10,7 @@ This folder contains documentation for the Zensor Portal UI project.
 ### Development Tools
 - **`MOCK_SERVER.md`** - Mock server setup and usage guide
 - **`NOTIFICATION_SYSTEM.md`** - Notification system implementation guide
+- **`LOGGING.md`** - Structured logging configuration and Loki integration guide
 
 ### API Documentation
 - **`openapi.yaml`** - OpenAPI specification for the backend API
@@ -28,6 +29,7 @@ This folder contains documentation for the Zensor Portal UI project.
 - [Project Configuration](./CONFIG.md)
 - [Mock Server Setup](./MOCK_SERVER.md)
 - [Notification System](./NOTIFICATION_SYSTEM.md)
+- [Logging Configuration](./LOGGING.md)
 - [Header Propagation System](./HEADER_PROPAGATION.md)
 - [Admin Portal Guide](./ADMIN_PORTAL.md)
 - [Grafana Configuration Guide](./GRAFANA_CONFIG.md)

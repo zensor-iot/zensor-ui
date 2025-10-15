@@ -2,13 +2,19 @@ import { WebSocketServer } from 'ws'
 import WebSocket from 'ws'
 import { tracer, injectTraceContext, addErrorSpanAttributes, recordWebSocketMetrics } from '../tracing.js'
 import { context, trace } from '@opentelemetry/api'
+import { logWebSocketEvent, createLogger } from '../logger.js'
 
 // Configuration
 const ZENSOR_API_URL = process.env.ZENSOR_API_URL || 'http://localhost:3000'
 const ZENSOR_WS_URL = ZENSOR_API_URL.replace(/^http/, 'ws') + '/ws/device-messages'
 
 export function setupWebSocketProxy(server) {
-    console.log(`🔗 Setting up WebSocket proxy to: ${ZENSOR_WS_URL}`)
+    const wsLogger = createLogger({ operation: 'websocket_proxy' })
+
+    wsLogger.info({
+        event: 'websocket_proxy_setup',
+        targetUrl: ZENSOR_WS_URL
+    }, `Setting up WebSocket proxy to: ${ZENSOR_WS_URL}`)
 
     const wss = new WebSocketServer({
         server,
@@ -16,7 +22,11 @@ export function setupWebSocketProxy(server) {
     })
 
     wss.on('connection', (clientWs, request) => {
-        console.log('🔌 New WebSocket client connected')
+        logWebSocketEvent('client_connected', {
+            userAgent: request.headers['user-agent'],
+            remoteAddress: request.connection.remoteAddress,
+            url: request.url
+        }, { operation: 'websocket_connection' })
 
         // Record WebSocket connection metric
         recordWebSocketMetrics('connection', {
@@ -132,7 +142,10 @@ export function setupWebSocketProxy(server) {
 
         // Handle Zensor WebSocket connection
         zensorWs.on('open', () => {
-            console.log('✅ Connected to Zensor WebSocket')
+            logWebSocketEvent('upstream_connected', {
+                targetUrl: ZENSOR_WS_URL
+            }, { operation: 'websocket_connection' })
+
             connectionSpan.setAttributes({
                 'websocket.connection_status': 'connected',
                 'websocket.upstream_connected': true,
@@ -140,7 +153,15 @@ export function setupWebSocketProxy(server) {
         })
 
         zensorWs.on('error', (error) => {
-            console.error('❌ Zensor WebSocket error:', error.message)
+            logWebSocketEvent('upstream_error', {
+                error: {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                },
+                targetUrl: ZENSOR_WS_URL
+            }, { operation: 'websocket_connection' })
+
             addErrorSpanAttributes(connectionSpan, error)
             connectionSpan.setAttributes({
                 'websocket.connection_status': 'error',
@@ -162,7 +183,12 @@ export function setupWebSocketProxy(server) {
         })
 
         zensorWs.on('close', (code, reason) => {
-            console.log(`🔌 Zensor WebSocket closed: ${code} ${reason}`)
+            logWebSocketEvent('upstream_closed', {
+                code,
+                reason: reason.toString(),
+                targetUrl: ZENSOR_WS_URL
+            }, { operation: 'websocket_connection' })
+
             connectionSpan.setAttributes({
                 'websocket.connection_status': 'closed',
                 'websocket.upstream_connected': false,
@@ -178,7 +204,11 @@ export function setupWebSocketProxy(server) {
 
         // Handle client disconnect
         clientWs.on('close', (code, reason) => {
-            console.log(`🔌 Client WebSocket disconnected: ${code} ${reason}`)
+            logWebSocketEvent('client_disconnected', {
+                code,
+                reason: reason.toString()
+            }, { operation: 'websocket_connection' })
+
             connectionSpan.setAttributes({
                 'websocket.connection_status': 'closed',
                 'websocket.client_connected': false,
@@ -193,7 +223,14 @@ export function setupWebSocketProxy(server) {
         })
 
         clientWs.on('error', (error) => {
-            console.error('❌ Client WebSocket error:', error.message)
+            logWebSocketEvent('client_error', {
+                error: {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                }
+            }, { operation: 'websocket_connection' })
+
             addErrorSpanAttributes(connectionSpan, error)
             connectionSpan.setAttributes({
                 'websocket.connection_status': 'error',
@@ -215,5 +252,8 @@ export function setupWebSocketProxy(server) {
         })
     })
 
-    console.log('✅ WebSocket proxy configured successfully')
+    wsLogger.info({
+        event: 'websocket_proxy_ready',
+        targetUrl: ZENSOR_WS_URL
+    }, 'WebSocket proxy configured successfully')
 } 

@@ -9,6 +9,8 @@ import { createServer } from 'http'
 import { setupWebSocketProxy } from './middleware/websocket-proxy.js'
 import { tracingMiddleware, traceContextMiddleware } from './middleware/tracing.js'
 import { tracer, injectTraceContext, addHttpSpanAttributes, addErrorSpanAttributes, recordHttpRequestMetrics } from './tracing.js'
+import { requestLoggingMiddleware, errorLoggingMiddleware, performanceLoggingMiddleware } from './middleware/logging.js'
+import { logSystemEvent, logApiRequest, logApiError, logWebSocketEvent } from './logger.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const port = process.env.PORT || 5173
@@ -18,11 +20,17 @@ const ZENSOR_API_KEY = process.env.ZENSOR_API_KEY || ''
 async function createSimpleServer() {
     const app = express()
 
-    console.log(`🔗 Setting up API proxy to: ${ZENSOR_API_URL}`)
+    logSystemEvent('api_proxy_setup', {
+        targetUrl: ZENSOR_API_URL
+    })
 
     // Apply tracing middleware first
     app.use(traceContextMiddleware)
     app.use(tracingMiddleware)
+
+    // Apply logging middleware
+    app.use(requestLoggingMiddleware)
+    app.use(performanceLoggingMiddleware)
 
     // Parse JSON bodies
     app.use(express.json())
@@ -37,7 +45,16 @@ async function createSimpleServer() {
             isAdmin: req.headers['remote-role'] === 'admin'
         }
 
-        console.log('👤 User info requested:', userInfo)
+        req.logger.info({
+            event: 'user_info_request',
+            userInfo: {
+                user: userInfo.user,
+                name: userInfo.name,
+                email: userInfo.email,
+                role: userInfo.role,
+                isAdmin: userInfo.isAdmin
+            }
+        }, 'User info requested')
 
         res.json(userInfo)
     })
@@ -79,7 +96,13 @@ async function createSimpleServer() {
                 'http.target_path': targetPath,
             })
 
-            console.log(`🔄 Proxying ${req.method} ${req.path} -> ${targetUrl}`)
+            req.logger.info({
+                event: 'api_proxy_request',
+                targetUrl,
+                targetPath,
+                method: req.method,
+                originalPath: req.path
+            }, `Proxying ${req.method} ${req.path} -> ${targetUrl}`)
 
             // Prepare headers with trace context injection
             const headers = {
@@ -124,6 +147,9 @@ async function createSimpleServer() {
             if (req.headers['x-real-ip']) {
                 userHeaders['X-Real-IP'] = req.headers['x-real-ip']
             }
+            if (req.headers['x-user-role']) {
+                userHeaders['X-User-Role'] = req.headers['x-user-role']
+            }
 
             // Legacy headers (for backward compatibility)
             if (req.headers['remote-user']) {
@@ -150,24 +176,31 @@ async function createSimpleServer() {
 
             // Add trace context headers for debugging
             if (process.env.NODE_ENV !== 'production') {
-                console.log('📤 Trace context headers:', {
-                    'b3-trace-id': headersWithTrace['b3-trace-id'] || 'not set',
-                    'b3-span-id': headersWithTrace['b3-span-id'] || 'not set',
-                    'b3-parent-span-id': headersWithTrace['b3-parent-span-id'] || 'not set',
-                    'b3-sampled': headersWithTrace['b3-sampled'] || 'not set',
-                })
+                req.logger.debug({
+                    event: 'trace_context_headers',
+                    traceHeaders: {
+                        'b3-trace-id': headersWithTrace['b3-trace-id'] || 'not set',
+                        'b3-span-id': headersWithTrace['b3-span-id'] || 'not set',
+                        'b3-parent-span-id': headersWithTrace['b3-parent-span-id'] || 'not set',
+                        'b3-sampled': headersWithTrace['b3-sampled'] || 'not set',
+                    }
+                }, 'Trace context headers')
             }
 
             // Debug logging for header propagation (development only)
             if (process.env.NODE_ENV !== 'production') {
-                console.log('📤 Propagating headers to Zensor API:', {
-                    'Authorization': headersWithTrace.authorization ? '***' : 'not set',
-                    'X-Auth-Token': headersWithTrace['x-auth-token'] ? '***' : 'not set',
-                    'X-User-ID': headersWithTrace['x-user-id'] || 'not set',
-                    'X-User-Email': headersWithTrace['x-user-email'] || 'not set',
-                    'X-Tenant-ID': headersWithTrace['x-tenant-id'] || 'not set',
-                    'X-Request-ID': headersWithTrace['x-request-id'] || 'not set'
-                })
+                req.logger.debug({
+                    event: 'header_propagation',
+                    headers: {
+                        'Authorization': headersWithTrace.authorization ? '***' : 'not set',
+                        'X-Auth-Token': headersWithTrace['x-auth-token'] ? '***' : 'not set',
+                        'X-User-ID': headersWithTrace['x-user-id'] || 'not set',
+                        'X-User-Email': headersWithTrace['x-user-email'] || 'not set',
+                        'X-User-Role': headersWithTrace['x-user-role'] || 'not set',
+                        'X-Tenant-ID': headersWithTrace['x-tenant-id'] || 'not set',
+                        'X-Request-ID': headersWithTrace['x-request-id'] || 'not set'
+                    }
+                }, 'Propagating headers to Zensor API')
             }
 
             // Prepare fetch options
@@ -239,7 +272,17 @@ async function createSimpleServer() {
             span.end()
 
         } catch (error) {
-            console.error('❌ Proxy error:', error.message)
+            req.logger.error({
+                event: 'api_proxy_error',
+                error: {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                },
+                targetUrl,
+                method: req.method,
+                path: req.path
+            }, 'Proxy error occurred')
 
             // Add error attributes to span
             addErrorSpanAttributes(span, error)
@@ -255,6 +298,13 @@ async function createSimpleServer() {
 
     // Health check endpoint
     app.get('/health', (req, res) => {
+        req.logger.info({
+            event: 'health_check',
+            status: 'ok',
+            zensorApiUrl: ZENSOR_API_URL,
+            hasApiKey: !!ZENSOR_API_KEY
+        }, 'Health check requested')
+
         res.json({
             status: 'ok',
             timestamp: new Date().toISOString(),
@@ -285,9 +335,17 @@ async function createSimpleServer() {
             ? resolve(__dirname, '../dist/client/index.html')
             : resolve(__dirname, '../index.html')
 
-        console.log(`📄 Serving SPA for route: ${req.path} -> ${indexPath}`)
+        req.logger.info({
+            event: 'spa_serve',
+            route: req.path,
+            indexPath
+        }, `Serving SPA for route: ${req.path} -> ${indexPath}`)
+
         res.sendFile(indexPath)
     })
+
+    // Add error logging middleware
+    app.use(errorLoggingMiddleware)
 
     return app
 }
@@ -300,11 +358,28 @@ createSimpleServer().then(app => {
     setupWebSocketProxy(server)
 
     server.listen(port, () => {
-        console.log(`🚀 Simple server running at http://localhost:${port}`)
-        console.log(`🔧 API proxy: ${ZENSOR_API_URL}`)
-        console.log(`🔑 API key: ${ZENSOR_API_KEY ? 'configured' : 'not set'}`)
+        logSystemEvent('server_started', {
+            port,
+            apiUrl: ZENSOR_API_URL,
+            hasApiKey: !!ZENSOR_API_KEY,
+            environment: process.env.NODE_ENV || 'development'
+        })
+
+        // Log server startup with structured logging
+        logSystemEvent('server_startup_complete', {
+            port,
+            apiUrl: ZENSOR_API_URL,
+            hasApiKey: !!ZENSOR_API_KEY,
+            status: 'running'
+        })
     })
 }).catch(err => {
-    console.error('Failed to start server:', err)
+    logSystemEvent('server_startup_error', {
+        error: {
+            name: err.name,
+            message: err.message,
+            stack: err.stack
+        }
+    })
     process.exit(1)
 }) 

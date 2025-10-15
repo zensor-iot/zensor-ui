@@ -74,8 +74,23 @@ sdk.start()
 // Graceful shutdown
 process.on('SIGTERM', () => {
     sdk.shutdown()
-        .then(() => console.log('Tracing terminated'))
-        .catch((error) => console.log('Error terminating tracing', error))
+        .then(() => {
+            const logger = createLogger({ operation: 'tracing' })
+            logger.info({
+                event: 'tracing_terminated'
+            }, 'Tracing terminated')
+        })
+        .catch((error) => {
+            const logger = createLogger({ operation: 'tracing' })
+            logger.error({
+                event: 'tracing_termination_error',
+                error: {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                }
+            }, 'Error terminating tracing')
+        })
         .finally(() => process.exit(0))
 })
 
@@ -221,13 +236,17 @@ export function recordWebSocketMetrics(event, attributes = {}) {
     }
 }
 
+// Import logger for structured logging
+import { logSystemEvent, createLogger } from './logger.js'
+
 const baseEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318'
 
-console.log('🔍 OpenTelemetry tracing and metrics initialized')
-console.log(`📊 Service: ${process.env.OTEL_SERVICE_NAME || 'zensor-ui'}`)
-console.log(`📈 Exporter: ${process.env.OTEL_EXPORTER_TYPE || 'otlp'}`)
-console.log(`🔗 OTLP Base Endpoint: ${baseEndpoint}`)
-console.log(`🔗 OTLP Traces Endpoint: ${baseEndpoint}/v1/traces`)
-console.log(`📊 OTLP Metrics Endpoint: ${baseEndpoint}/v1/metrics`)
+logSystemEvent('tracing_initialized', {
+    service: process.env.OTEL_SERVICE_NAME || 'zensor-ui',
+    exporter: process.env.OTEL_EXPORTER_TYPE || 'otlp',
+    baseEndpoint,
+    tracesEndpoint: `${baseEndpoint}/v1/traces`,
+    metricsEndpoint: `${baseEndpoint}/v1/metrics`
+})
 
 export default sdk
