@@ -32,7 +32,9 @@ async function createSimpleServer() {
         const userInfo = {
             user: req.headers['remote-user'] || null,
             name: req.headers['remote-name'] || null,
-            email: req.headers['remote-email'] || null
+            email: req.headers['remote-email'] || null,
+            role: req.headers['remote-role'] || null,
+            isAdmin: req.headers['remote-role'] === 'admin'
         }
 
         console.log('👤 User info requested:', userInfo)
@@ -47,7 +49,7 @@ async function createSimpleServer() {
     app.options('/api/*', (req, res) => {
         res.header('Access-Control-Allow-Origin', '*')
         res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Auth-Token, X-User-ID, X-User-Email, X-User-Name, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email')
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Auth-Token, X-User-ID, X-User-Email, X-User-Name, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email, Remote-Role')
         res.sendStatus(200)
     })
 
@@ -133,6 +135,9 @@ async function createSimpleServer() {
             if (req.headers['remote-email']) {
                 userHeaders['X-User-Email'] = req.headers['remote-email']
             }
+            if (req.headers['remote-role']) {
+                userHeaders['X-User-Role'] = req.headers['remote-role']
+            }
 
             // Merge user headers with existing headers
             Object.assign(headersWithTrace, userHeaders)
@@ -206,7 +211,7 @@ async function createSimpleServer() {
             // Set CORS headers
             res.set('Access-Control-Allow-Origin', '*')
             res.set('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-            res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Auth-Token, X-User-ID, X-User-Email, X-User-Name, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email')
+            res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Auth-Token, X-User-ID, X-User-Email, X-User-Name, X-Tenant-ID, X-Request-ID, X-Forwarded-For, X-Real-IP, Remote-User, Remote-Name, Remote-Email, Remote-Role')
 
             // Forward response
             const data = await response.text()

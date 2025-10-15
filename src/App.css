@@ -2964,3 +2964,25 @@ body {
     flex: 1;
   }
 }
+
+/* ===== Admin Main Content ===== */
+.admin-main {
+  padding: 0;
+  background: var(--background);
+  min-height: 100vh;
+}
+
+/* ===== Admin Navigation ===== */
+.admin-link {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white !important;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  transition: all 0.2s ease;
+}
+
+.admin-link:hover {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
