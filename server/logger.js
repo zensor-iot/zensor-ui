@@ -186,13 +186,17 @@ export function createRequestLogger(req, additionalContext = {}) {
 /**
  * Log API request with structured data
  * @param {Object} req - Express request object
- * @param {Object} response - Response data
+ * @param {Object} response - Response data (Express res or fetch Response)
  * @param {number} duration - Request duration in ms
  */
 export function logApiRequest(req, response, duration) {
+    // Handle both Express response objects and fetch Response objects
+    const statusCode = response.statusCode || response.status
+    const contentLength = response.get?.('content-length') || response.headers?.['content-length']
+
     const requestLogger = createRequestLogger(req, {
         operation: 'api_request',
-        responseStatus: response.status,
+        responseStatus: statusCode,
         duration
     })
 
@@ -200,9 +204,9 @@ export function logApiRequest(req, response, duration) {
         event: 'api_request',
         method: req.method,
         path: req.path,
-        statusCode: response.status,
+        statusCode: statusCode,
         duration,
-        contentLength: response.headers?.['content-length'],
+        contentLength: contentLength,
         userAgent: req.headers['user-agent'],
         ip: req.ip || req.connection?.remoteAddress
     }, 'API request completed')
