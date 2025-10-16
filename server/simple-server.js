@@ -1,6 +1,10 @@
 // Initialize OpenTelemetry tracing first
 import './tracing.js'
 
+// Load environment variables from .env file if it exists
+import { config } from 'dotenv'
+config()
+
 import express from 'express'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'

@@ -9,6 +9,7 @@
 .admin-header {
     margin-bottom: 2rem;
     text-align: center;
+    position: relative;
 }
 
 .admin-title {
@@ -17,6 +18,45 @@
     justify-content: center;
     gap: 1rem;
     margin-bottom: 0.5rem;
+}
+
+.admin-header-actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+
+.refresh-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.refresh-button:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.refresh-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .admin-title h1 {

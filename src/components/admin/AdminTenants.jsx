@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Building, Plus, Edit, Trash2, Eye, ArrowLeft, Users, Cpu } from 'lucide-react'
+import { Building, Plus, Edit, Trash2, Eye, ArrowLeft, Smartphone } from 'lucide-react'
 import { useAdmin } from '../../hooks/useAdmin'
 import { useNotification } from '../../hooks/useNotification'
 import './AdminTenants.css'
@@ -9,6 +9,7 @@ const AdminTenants = () => {
     const { isAdmin, isLoading } = useAdmin()
     const { showSuccess, showError, showApiNotification } = useNotification()
     const [tenants, setTenants] = useState([])
+    const [deviceCounts, setDeviceCounts] = useState({})
     const [loading, setLoading] = useState(true)
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [editingTenant, setEditingTenant] = useState(null)
@@ -37,15 +38,54 @@ const AdminTenants = () => {
 
             if (response.ok) {
                 const data = await response.json()
-                setTenants(data)
+                console.log('Tenants API response:', data) // Debug log
+
+                // Handle paginated response format (data.data) or direct array
+                const tenantsArray = Array.isArray(data) ? data : (data.data || [])
+                console.log('Tenants count:', tenantsArray.length)
+                setTenants(tenantsArray)
+
+                // Fetch device counts for each tenant
+                fetchDeviceCounts(tenantsArray)
             } else {
                 throw new Error(`HTTP ${response.status}`)
             }
         } catch (error) {
             console.error('Failed to fetch tenants:', error)
             showError('Failed to load tenants', 'Error')
+            setTenants([]) // Ensure tenants is always an array
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchDeviceCounts = async (tenantsArray) => {
+        try {
+            const deviceCountPromises = tenantsArray.map(async (tenant) => {
+                try {
+                    const response = await fetch(`/api/tenants/${tenant.id}/devices`)
+                    if (response.ok) {
+                        const data = await response.json()
+                        const devices = Array.isArray(data) ? data : (data.data || [])
+                        return { tenantId: tenant.id, count: devices.length }
+                    }
+                    return { tenantId: tenant.id, count: 0 }
+                } catch (error) {
+                    console.warn(`Failed to fetch devices for tenant ${tenant.id}:`, error)
+                    return { tenantId: tenant.id, count: 0 }
+                }
+            })
+
+            const counts = await Promise.all(deviceCountPromises)
+            const deviceCountMap = {}
+            counts.forEach(({ tenantId, count }) => {
+                deviceCountMap[tenantId] = count
+            })
+
+            setDeviceCounts(deviceCountMap)
+            console.log('Device counts:', deviceCountMap)
+        } catch (error) {
+            console.error('Failed to fetch device counts:', error)
         }
     }
 
@@ -255,7 +295,7 @@ const AdminTenants = () => {
                 <div className="loading">Loading tenants...</div>
             ) : (
                 <div className="tenants-grid">
-                    {tenants.map((tenant) => (
+                    {Array.isArray(tenants) && tenants.map((tenant) => (
                         <div key={tenant.id} className="tenant-card">
                             <div className="tenant-header">
                                 <div className="tenant-info">
@@ -302,18 +342,14 @@ const AdminTenants = () => {
 
                             <div className="tenant-stats">
                                 <div className="stat">
-                                    <Users size={16} />
-                                    <span>Devices: {tenant.device_count || 0}</span>
-                                </div>
-                                <div className="stat">
-                                    <Cpu size={16} />
-                                    <span>Tasks: {tenant.task_count || 0}</span>
+                                    <Smartphone size={16} />
+                                    <span>Devices: {deviceCounts[tenant.id] || 0}</span>
                                 </div>
                             </div>
                         </div>
                     ))}
 
-                    {tenants.length === 0 && (
+                    {(!Array.isArray(tenants) || tenants.length === 0) && (
                         <div className="empty-state">
                             <Building size={48} />
                             <h3>No Tenants Found</h3>

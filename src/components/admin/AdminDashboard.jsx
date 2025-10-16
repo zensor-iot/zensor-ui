@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Building, Cpu, Clock, Play, Shield, Activity, Users, Database } from 'lucide-react'
+import { Building, Cpu, Play, Shield, Activity, Users, Database, RefreshCw } from 'lucide-react'
 import { useAdmin } from '../../hooks/useAdmin'
 import { useNotification } from '../../hooks/useNotification'
 import './AdminDashboard.css'
@@ -11,9 +11,6 @@ const AdminDashboard = () => {
     const [stats, setStats] = useState({
         totalTenants: 0,
         totalDevices: 0,
-        totalScheduledTasks: 0,
-        activeTasks: 0,
-        totalExecutions: 0,
         systemHealth: 'healthy'
     })
     const [loading, setLoading] = useState(true)
@@ -39,19 +36,24 @@ const AdminDashboard = () => {
                 fetch('/api/devices')
             ])
 
-            if (tenantsResponse.ok && devicesResponse.ok) {
-                const tenants = await tenantsResponse.json()
-                const devices = await devicesResponse.json()
-
-                setStats({
-                    totalTenants: tenants.length || 0,
-                    totalDevices: devices.length || 0,
-                    totalScheduledTasks: 0, // Will be calculated from individual devices
-                    activeTasks: 0, // Will be calculated from individual devices
-                    totalExecutions: 0, // Will be calculated from individual devices
-                    systemHealth: 'healthy'
-                })
+            if (!tenantsResponse.ok || !devicesResponse.ok) {
+                throw new Error('Failed to fetch basic system data')
             }
+
+            const tenantsData = await tenantsResponse.json()
+            const devicesData = await devicesResponse.json()
+
+            // Handle paginated response format
+            const tenants = Array.isArray(tenantsData) ? tenantsData : (tenantsData.data || [])
+            const devices = Array.isArray(devicesData) ? devicesData : (devicesData.data || [])
+
+            console.log('Admin Dashboard - Tenants:', tenants.length, 'Devices:', devices.length)
+
+            setStats({
+                totalTenants: tenants.length || 0,
+                totalDevices: devices.length || 0,
+                systemHealth: 'healthy'
+            })
         } catch (error) {
             console.error('Failed to fetch system stats:', error)
             showError('Failed to load system statistics', 'Error')
@@ -116,18 +118,6 @@ const AdminDashboard = () => {
             value: stats.totalDevices,
             icon: Cpu,
             color: 'green'
-        },
-        {
-            title: 'Scheduled Tasks',
-            value: stats.totalScheduledTasks,
-            icon: Clock,
-            color: 'purple'
-        },
-        {
-            title: 'Active Tasks',
-            value: stats.activeTasks,
-            icon: Play,
-            color: 'orange'
         }
     ]
 
@@ -137,6 +127,17 @@ const AdminDashboard = () => {
                 <div className="admin-title">
                     <Shield size={32} />
                     <h1>Admin Dashboard</h1>
+                </div>
+                <div className="admin-header-actions">
+                    <button
+                        className="refresh-button"
+                        onClick={fetchSystemStats}
+                        disabled={loading}
+                        title="Refresh statistics"
+                    >
+                        <RefreshCw size={16} className={loading ? 'spinning' : ''} />
+                        Refresh
+                    </button>
                 </div>
                 <p className="admin-subtitle">System-wide management and monitoring</p>
             </div>

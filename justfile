@@ -185,20 +185,55 @@ restart-mock:
 prod:
     #!/bin/bash
     echo "🚀 Starting Zensor Portal UI in production mode..."
+    echo "🌐 Connecting to production API: https://server.zensor-iot.net"
     
-    # Set production API base URL
-    export VITE_API_BASE_URL=https://server.zensor-iot.net
+    # Check if API key is provided
+    if [ -z "$ZENSOR_API_KEY" ]; then
+        echo ""
+        echo "❌ ZENSOR_API_KEY environment variable is not set!"
+        echo ""
+        echo "🔑 Please provide your API key in one of these ways:"
+        echo ""
+        echo "Option 1 - Set environment variable:"
+        echo "   export ZENSOR_API_KEY=your-api-key-here"
+        echo "   just prod"
+        echo ""
+        echo "Option 2 - Set it inline:"
+        echo "   ZENSOR_API_KEY=your-api-key-here just prod"
+        echo ""
+        echo "Option 3 - Create a .env file:"
+        echo "   cp .env.example .env"
+        echo "   # Edit .env and set your ZENSOR_API_KEY"
+        echo "   just prod"
+        echo ""
+        exit 1
+    fi
     
-    echo "🌐 Production API URL: $VITE_API_BASE_URL"
-    echo "📱 Starting React development server..."
+    # Build client first to ensure latest changes are included
+    echo "🏗️  Building client with latest changes..."
+    npm run build:client
+    
+    # Set production environment variables for the Express server
+    export NODE_ENV=production
+    export ZENSOR_API_URL=https://server.zensor-iot.net
+    export PORT=${PORT:-5173}
+    
+    echo "🔧 Production configuration:"
+    echo "   - API URL: $ZENSOR_API_URL"
+    echo "   - API Key: [SET - ${#ZENSOR_API_KEY} characters]"
+    echo "   - Port: $PORT"
+    echo "   - Environment: $NODE_ENV"
+    echo ""
+    echo "📱 Application will be available at: http://localhost:$PORT"
     echo "🔗 WebSocket will connect to: wss://server.zensor-iot.net/ws/device-messages"
+    echo "🌐 API calls will be proxied to: $ZENSOR_API_URL"
     echo ""
     echo "💡 Press Ctrl+C to stop the server"
     echo "⚠️  Note: This connects to the production API server"
     echo ""
     
-    # Start the React development server
-    npm run dev
+    # Start the Express server with production API
+    node server/simple-server.js
 
 build-prod:
     #!/bin/bash

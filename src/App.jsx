@@ -11,6 +11,7 @@ import AdminDevices from './components/admin/AdminDevices'
 import AdminScheduledTasks from './components/admin/AdminScheduledTasks'
 import AdminTaskExecutions from './components/admin/AdminTaskExecutions'
 import AdminCommands from './components/admin/AdminCommands'
+import AdminHealth from './components/admin/AdminHealth'
 import { NotificationProvider } from './components/NotificationSystem'
 import { useAdmin } from './hooks/useAdmin'
 import './App.css'
@@ -68,6 +69,7 @@ function App() {
             <Route path="/admin/tenants/:tenantId/devices/:deviceId/scheduled-tasks" element={<AdminScheduledTasks />} />
             <Route path="/admin/tenants/:tenantId/devices/:deviceId/scheduled-tasks/:taskId/executions" element={<AdminTaskExecutions />} />
             <Route path="/admin/commands" element={<AdminCommands />} />
+            <Route path="/admin/health" element={<AdminHealth />} />
           </Routes>
         </main>
       </div>
