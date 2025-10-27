@@ -26,6 +26,10 @@ RUN npm run build:client
 # Production stage  
 FROM node:20-alpine AS production
 
+# Accept build arg to bust cache in production stage
+ARG CACHE_BUST=1
+RUN echo "Cache bust: $CACHE_BUST"
+
 WORKDIR /app
 
 # Copy package files
