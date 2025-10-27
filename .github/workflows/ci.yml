@@ -73,7 +73,6 @@ jobs:
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=My multi-arch image
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # Use git sha to ensure fresh builds on new commits
           build-args: |
             CACHE_BUST=${{ github.sha }}
 
