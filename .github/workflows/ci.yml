@@ -57,6 +57,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get commit hash
+        id: commit
+        run: echo "hash=${{ github.sha }}" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         id: build-and-push
         uses: docker/build-push-action@v6
@@ -69,7 +73,9 @@ jobs:
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=My multi-arch image
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          no-cache: false  # Keep cache for faster builds
+          # Use git sha to ensure fresh builds on new commits
+          build-args: |
+            CACHE_BUST=${{ github.sha }}
 
       - name: Sign the published Docker image
         if: ${{ github.event_name != 'pull_request' }}

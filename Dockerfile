@@ -1,6 +1,9 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+# Accept build arg to bust cache when needed
+ARG CACHE_BUST=1
+
 WORKDIR /app
 
 # Copy package files first for better caching
