@@ -5,6 +5,7 @@ import TenantDevices from './components/TenantDevices'
 import TenantPortal from './components/TenantPortal'
 import DeviceMessagesLive from './components/DeviceMessagesLive'
 import UserInfo from './components/UserInfo'
+import Profile from './components/Profile'
 import AdminDashboard from './components/admin/AdminDashboard'
 import AdminTenants from './components/admin/AdminTenants'
 import AdminDevices from './components/admin/AdminDevices'
@@ -61,6 +62,7 @@ function App() {
             <Route path="/tenants/:tenantId/devices" element={<TenantDevices />} />
             <Route path="/portal/:tenantId" element={<TenantPortal />} />
             <Route path="/live-messages" element={<DeviceMessagesLive />} />
+            <Route path="/profile" element={<Profile />} />
 
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />

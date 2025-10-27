@@ -14,22 +14,8 @@ dev:
     if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
         echo "✅ Mock server already running on port 3000"
     else
-        echo "🔧 Starting mock server in background..."
-        node custom-mock-server.js > mock-server.log 2>&1 &
-        MOCK_SERVER_PID=$!
-        echo "📝 Mock server started with PID: $MOCK_SERVER_PID"
-        
-        # Wait a moment for the server to start
-        sleep 2
-        
-        # Check if server started successfully
-        if curl -s http://localhost:3000/healthz >/dev/null 2>&1; then
-            echo "✅ Mock server started successfully"
-        else
-            echo "❌ Failed to start mock server"
-            kill $MOCK_SERVER_PID 2>/dev/null
-            exit 1
-        fi
+        echo "⚠️  Mock server not running - starting development server without mock API"
+        echo "💡 To start mock server separately, run: just mock-only"
     fi
     
     # Build client first to ensure latest changes are included
@@ -68,7 +54,7 @@ watch:
         echo "✅ Mock server already running on port 3000"
     else
         echo "🔧 Starting mock server in background..."
-        node custom-mock-server.js > mock-server.log 2>&1 &
+        node minimal-mock-server.js > mock-server.log 2>&1 &
         MOCK_SERVER_PID=$!
         echo "📝 Mock server started with PID: $MOCK_SERVER_PID"
         
@@ -133,10 +119,9 @@ mock-only:
     if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
         echo "✅ Mock server already running on port 3000"
         echo "📄 Server URL: http://localhost:3000"
-        echo "🔌 WebSocket URL: ws://localhost:3000/ws/device-messages"
     else
-        echo "🚀 Starting mock server..."
-        node custom-mock-server.js
+        echo "🚀 Starting working mock server..."
+        node working-mock-server.js
     fi
 
 stop-mock:
@@ -163,9 +148,9 @@ restart-mock:
     # Wait a moment
     sleep 1
     
-    # Start new mock server
-    echo "🚀 Starting new mock server..."
-    node custom-mock-server.js > mock-server.log 2>&1 &
+    # Start new mock server on port 3000
+    echo "🚀 Starting new mock server on port 3000..."
+    PORT=3000 node custom-mock-server.js > mock-server.log 2>&1 &
     MOCK_SERVER_PID=$!
     echo "📝 Mock server started with PID: $MOCK_SERVER_PID"
     

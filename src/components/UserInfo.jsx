@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react'
-import { User } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
+import { User, LogOut, UserCircle } from 'lucide-react'
 
 const UserInfo = () => {
     const [userInfo, setUserInfo] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
+    const [showMenu, setShowMenu] = useState(false)
+    const menuRef = useRef(null)
 
     useEffect(() => {
         const fetchUserInfo = async () => {
@@ -27,6 +30,33 @@ const UserInfo = () => {
 
         fetchUserInfo()
     }, [])
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setShowMenu(false)
+            }
+        }
+
+        if (showMenu) {
+            document.addEventListener('mousedown', handleClickOutside)
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+        }
+    }, [showMenu])
+
+    const handleUserClick = () => {
+        setShowMenu(!showMenu)
+    }
+
+    const handleLogout = () => {
+        // TODO: Implement logout functionality
+        console.log('Logout clicked')
+        setShowMenu(false)
+    }
 
     if (loading) {
         console.log('⏳ UserInfo: Loading...')
@@ -60,13 +90,39 @@ const UserInfo = () => {
         )
     }
 
-    const displayName = userInfo.name || userInfo.email || userInfo.user
-    console.log('✅ UserInfo: Authenticated user -', displayName)
+    const displayEmail = userInfo.email || 'No email'
+    console.log('✅ UserInfo: Authenticated user -', displayEmail)
 
     return (
-        <div className="user-info" title={`${userInfo.name || 'Unknown'} (${userInfo.email || 'No email'})`}>
-            <User size={20} />
-            <span className="user-name">{displayName}</span>
+        <div className="user-info-container" ref={menuRef}>
+            <div
+                className="user-info clickable"
+                onClick={handleUserClick}
+                title={`${userInfo.name || 'Unknown'} (${userInfo.email || 'No email'})`}
+            >
+                <User size={20} />
+                <span className="user-email">{displayEmail}</span>
+            </div>
+
+            {showMenu && (
+                <div className="user-menu">
+                    <Link
+                        to="/profile"
+                        className="user-menu-item"
+                        onClick={() => setShowMenu(false)}
+                    >
+                        <UserCircle size={16} />
+                        Profile
+                    </Link>
+                    <button
+                        className="user-menu-item"
+                        onClick={handleLogout}
+                    >
+                        <LogOut size={16} />
+                        Logout
+                    </button>
+                </div>
+            )}
         </div>
     )
 }

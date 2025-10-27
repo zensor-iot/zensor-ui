@@ -24,7 +24,11 @@ const mockData = {
             version: 1,
             created_at: '2024-01-01T00:00:00Z',
             updated_at: '2024-01-15T10:30:00Z',
-            deleted_at: null
+            deleted_at: null,
+            configuration: {
+                timezone: 'America/New_York',
+                notification_email: 'notifications@acme.com'
+            }
         },
         {
             id: '550e8400-e29b-41d4-a716-446655440002',
@@ -35,7 +39,11 @@ const mockData = {
             version: 1,
             created_at: '2024-01-05T00:00:00Z',
             updated_at: '2024-01-20T14:15:00Z',
-            deleted_at: null
+            deleted_at: null,
+            configuration: {
+                timezone: 'Europe/London',
+                notification_email: 'alerts@greenfarms.com'
+            }
         },
         {
             id: '550e8400-e29b-41d4-a716-446655440003',
@@ -414,6 +422,39 @@ app.put('/v1/tenants/:id', (req, res) => {
     res.json(tenant);
 });
 
+// Tenant configuration
+app.get('/v1/tenants/:id/configuration', (req, res) => {
+    const tenant = mockData.tenants.find(t => t.id === req.params.id);
+    if (!tenant) {
+        return res.status(404).json({ message: 'Tenant not found' });
+    }
+
+    // Return configuration if it exists, otherwise return empty/default
+    const configuration = tenant.configuration || {
+        timezone: '',
+        notification_email: ''
+    };
+
+    res.json(configuration);
+});
+
+app.put('/v1/tenants/:id/configuration', (req, res) => {
+    const tenant = mockData.tenants.find(t => t.id === req.params.id);
+    if (!tenant) {
+        return res.status(404).json({ message: 'Tenant not found' });
+    }
+
+    // Initialize configuration if it doesn't exist
+    if (!tenant.configuration) {
+        tenant.configuration = {};
+    }
+
+    // Update configuration with new values
+    Object.assign(tenant.configuration, req.body);
+
+    res.json(tenant.configuration);
+});
+
 // Tenant devices
 app.get('/v1/tenants/:id/devices', (req, res) => {
     const { page = 1, limit = 10 } = req.query;
@@ -727,6 +768,8 @@ server.listen(PORT, HOST, () => {
     console.log('   POST /v1/tenants                 - Create tenant');
     console.log('   GET  /v1/tenants/{id}            - Get tenant');
     console.log('   PUT  /v1/tenants/{id}            - Update tenant');
+    console.log('   GET  /v1/tenants/{id}/configuration - Get tenant configuration');
+    console.log('   PUT  /v1/tenants/{id}/configuration - Update tenant configuration');
     console.log('   GET  /v1/tenants/{id}/devices    - List tenant devices');
     console.log('   POST /v1/tenants/{id}/devices    - Adopt device');
     console.log('   GET  /v1/devices                 - List all devices');

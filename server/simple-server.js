@@ -41,12 +41,24 @@ async function createSimpleServer() {
 
     // User info endpoint - returns user data from authentication headers
     app.get('/api/user', (req, res) => {
-        const userInfo = {
+        // For development, return mock data if no headers are present
+        const hasAuthHeaders = req.headers['remote-user'] || req.headers['remote-name'] || req.headers['remote-email']
+
+        const userInfo = hasAuthHeaders ? {
             user: req.headers['remote-user'] || null,
             name: req.headers['remote-name'] || null,
             email: req.headers['remote-email'] || null,
             role: req.headers['remote-role'] || null,
+            tenant_id: req.headers['x-tenant-id'] || req.headers['remote-tenant-id'] || null,
             isAdmin: req.headers['remote-role'] === 'admin'
+        } : {
+            // Mock data for development
+            user: 'testuser',
+            name: 'Test User',
+            email: 'test@example.com',
+            role: 'admin',
+            tenant_id: 'test-tenant-id', // Mock tenant ID for development
+            isAdmin: true
         }
 
         req.logger.info({
@@ -56,6 +68,7 @@ async function createSimpleServer() {
                 name: userInfo.name,
                 email: userInfo.email,
                 role: userInfo.role,
+                tenant_id: userInfo.tenant_id,
                 isAdmin: userInfo.isAdmin
             }
         }, 'User info requested')
