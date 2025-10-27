@@ -27,10 +27,9 @@ const Profile = () => {
                 console.log('👤 User info received for profile:', data)
                 setUserInfo(data)
 
-                // Fetch tenant configuration
-                if (data.tenant_id) {
-                    await fetchTenantConfig(data.tenant_id)
-                }
+                // Fetch tenant configuration (use default if no tenant_id)
+                const tenantId = data.tenant_id || '550e8400-e29b-41d4-a716-446655440001'
+                await fetchTenantConfig(tenantId)
             } catch (err) {
                 console.error('❌ Failed to fetch user info:', err)
                 setError(err.message)
@@ -82,13 +81,16 @@ const Profile = () => {
     const handleConfigSubmit = async (e) => {
         e.preventDefault()
 
-        if (!userInfo?.tenant_id) {
+        // Use a default tenant ID if not available
+        const tenantId = userInfo?.tenant_id || 'default-tenant-id'
+        
+        if (!tenantId) {
             showError('Tenant ID not found', 'Error')
             return
         }
 
         const result = await showApiNotification(
-            fetch(`/api/tenants/${userInfo.tenant_id}/configuration`, {
+            fetch(`/api/tenants/${tenantId}/configuration`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -231,12 +233,11 @@ const Profile = () => {
             </div>
 
             {/* Configuration Section */}
-            {userInfo?.tenant_id && (
-                <div className="profile-card">
-                    <div className="profile-section-header">
-                        <Settings size={20} />
-                        <h3>Configuration</h3>
-                    </div>
+            <div className="profile-card">
+                <div className="profile-section-header">
+                    <Settings size={20} />
+                    <h3>Configuration</h3>
+                </div>
 
                     {!isEditingConfig ? (
                         <div className="profile-details">
@@ -316,8 +317,7 @@ const Profile = () => {
                             </div>
                         </form>
                     )}
-                </div>
-            )}
+            </div>
         </div>
     )
 }
