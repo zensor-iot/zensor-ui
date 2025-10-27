@@ -3,14 +3,18 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package*.json ./
 
 # Install all dependencies (including devDependencies for build)
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy source files (use specific paths for better cache invalidation)
+COPY src/ ./src/
+COPY public/ ./public/
+COPY index.html ./
+COPY vite.config.js ./
+COPY server/ ./server/
 
 # Build only the client for production (skip SSR build to avoid module resolution issues)
 RUN npm run build:client

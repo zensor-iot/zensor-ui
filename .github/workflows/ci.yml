@@ -69,6 +69,7 @@ jobs:
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=My multi-arch image
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          no-cache: false  # Keep cache for faster builds
 
       - name: Sign the published Docker image
         if: ${{ github.event_name != 'pull_request' }}
