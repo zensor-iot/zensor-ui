@@ -49,7 +49,6 @@ async function createSimpleServer() {
             name: req.headers['remote-name'] || null,
             email: req.headers['remote-email'] || null,
             role: req.headers['remote-role'] || null,
-            tenant_id: req.headers['x-tenant-id'] || req.headers['remote-tenant-id'] || null,
             isAdmin: req.headers['remote-role'] === 'admin'
         } : {
             // Mock data for development

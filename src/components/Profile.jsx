@@ -37,9 +37,9 @@ const Profile = () => {
                         const tenantPromises = userDetails.tenants.map(tenantId => fetchTenantDetails(tenantId))
                         const tenantDetails = await Promise.all(tenantPromises)
                         const validTenants = tenantDetails.filter(tenant => tenant !== null)
-                        
+
                         setAuthorizedTenants(validTenants)
-                        
+
                         // Select the first tenant by default
                         if (validTenants.length > 0) {
                             setSelectedTenantId(validTenants[0].id)
@@ -312,8 +312,8 @@ const Profile = () => {
                                 Tenant
                             </div>
                             <div className="field-value">
-                                <select 
-                                    value={selectedTenantId || ''} 
+                                <select
+                                    value={selectedTenantId || ''}
                                     onChange={(e) => handleTenantSelect(e.target.value)}
                                     className="form-input"
                                     style={{ marginTop: '8px' }}
@@ -329,84 +329,84 @@ const Profile = () => {
                     </div>
                 )}
 
-                    {!isEditingConfig ? (
-                        <div className="profile-details">
-                            <div className="profile-field">
-                                <div className="field-label">
-                                    <Clock size={16} />
-                                    Timezone
-                                </div>
-                                <div className="field-value">
-                                    {tenantConfig?.timezone || 'Not set'}
-                                </div>
+                {!isEditingConfig ? (
+                    <div className="profile-details">
+                        <div className="profile-field">
+                            <div className="field-label">
+                                <Clock size={16} />
+                                Timezone
                             </div>
-
-                            <div className="profile-field">
-                                <div className="field-label">
-                                    <Mail size={16} />
-                                    Notification Email
-                                </div>
-                                <div className="field-value">
-                                    {tenantConfig?.notification_email || 'Not set'}
-                                </div>
-                            </div>
-
-                            <div className="profile-actions">
-                                <button
-                                    onClick={handleConfigEdit}
-                                    className="btn-primary"
-                                >
-                                    Edit Configuration
-                                </button>
+                            <div className="field-value">
+                                {tenantConfig?.timezone || 'Not set'}
                             </div>
                         </div>
-                    ) : (
-                        <form onSubmit={handleConfigSubmit} className="profile-form">
-                            <div className="form-field">
-                                <label htmlFor="timezone">
-                                    <Clock size={16} />
-                                    Timezone
-                                </label>
-                                <TimezoneDropdown
-                                    value={configForm.timezone}
-                                    onChange={(value) => setConfigForm(prev => ({ ...prev, timezone: value }))}
-                                    placeholder="Select a timezone..."
-                                />
-                            </div>
 
-                            <div className="form-field">
-                                <label htmlFor="notification_email">
-                                    <Mail size={16} />
-                                    Notification Email
-                                </label>
-                                <input
-                                    type="email"
-                                    id="notification_email"
-                                    name="notification_email"
-                                    value={configForm.notification_email}
-                                    onChange={handleConfigInputChange}
-                                    placeholder="e.g., notifications@example.com"
-                                    className="form-input"
-                                />
+                        <div className="profile-field">
+                            <div className="field-label">
+                                <Mail size={16} />
+                                Notification Email
                             </div>
+                            <div className="field-value">
+                                {tenantConfig?.notification_email || 'Not set'}
+                            </div>
+                        </div>
 
-                            <div className="profile-actions">
-                                <button
-                                    type="submit"
-                                    className="btn-primary"
-                                >
-                                    Save Changes
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleConfigCancel}
-                                    className="btn-secondary"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
-                    )}
+                        <div className="profile-actions">
+                            <button
+                                onClick={handleConfigEdit}
+                                className="btn-primary"
+                            >
+                                Edit Configuration
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <form onSubmit={handleConfigSubmit} className="profile-form">
+                        <div className="form-field">
+                            <label htmlFor="timezone">
+                                <Clock size={16} />
+                                Timezone
+                            </label>
+                            <TimezoneDropdown
+                                value={configForm.timezone}
+                                onChange={(value) => setConfigForm(prev => ({ ...prev, timezone: value }))}
+                                placeholder="Select a timezone..."
+                            />
+                        </div>
+
+                        <div className="form-field">
+                            <label htmlFor="notification_email">
+                                <Mail size={16} />
+                                Notification Email
+                            </label>
+                            <input
+                                type="email"
+                                id="notification_email"
+                                name="notification_email"
+                                value={configForm.notification_email}
+                                onChange={handleConfigInputChange}
+                                placeholder="e.g., notifications@example.com"
+                                className="form-input"
+                            />
+                        </div>
+
+                        <div className="profile-actions">
+                            <button
+                                type="submit"
+                                className="btn-primary"
+                            >
+                                Save Changes
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfigCancel}
+                                className="btn-secondary"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                )}
             </div>
         </div>
     )

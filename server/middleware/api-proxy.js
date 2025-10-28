@@ -80,9 +80,6 @@ export function setupApiProxy(app) {
             if (req.headers['x-user-name']) {
                 userHeaders['X-User-Name'] = req.headers['x-user-name']
             }
-            if (req.headers['x-tenant-id']) {
-                userHeaders['X-Tenant-ID'] = req.headers['x-tenant-id']
-            }
             if (req.headers['x-request-id']) {
                 userHeaders['X-Request-ID'] = req.headers['x-request-id']
             }
