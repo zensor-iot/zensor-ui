@@ -6,6 +6,8 @@ import TimezoneDropdown from './TimezoneDropdown'
 const Profile = () => {
     const { showSuccess, showError, showApiNotification } = useNotification()
     const [userInfo, setUserInfo] = useState(null)
+    const [authorizedTenants, setAuthorizedTenants] = useState([])
+    const [selectedTenantId, setSelectedTenantId] = useState(null)
     const [tenantConfig, setTenantConfig] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -27,9 +29,34 @@ const Profile = () => {
                 console.log('👤 User info received for profile:', data)
                 setUserInfo(data)
 
-                // Fetch tenant configuration (use default if no tenant_id)
-                const tenantId = data.tenant_id || '550e8400-e29b-41d4-a716-446655440001'
-                await fetchTenantConfig(tenantId)
+                // If we have a user ID, fetch user details with authorized tenants
+                if (data.user) {
+                    const userDetails = await fetchUserDetails(data.user)
+                    if (userDetails && userDetails.tenants && userDetails.tenants.length > 0) {
+                        // Fetch details for each authorized tenant
+                        const tenantPromises = userDetails.tenants.map(tenantId => fetchTenantDetails(tenantId))
+                        const tenantDetails = await Promise.all(tenantPromises)
+                        const validTenants = tenantDetails.filter(tenant => tenant !== null)
+                        
+                        setAuthorizedTenants(validTenants)
+                        
+                        // Select the first tenant by default
+                        if (validTenants.length > 0) {
+                            setSelectedTenantId(validTenants[0].id)
+                            await fetchTenantConfig(validTenants[0].id)
+                        }
+                    } else {
+                        // Fallback to default tenant if no authorized tenants
+                        const defaultTenantId = '550e8400-e29b-41d4-a716-446655440001'
+                        setSelectedTenantId(defaultTenantId)
+                        await fetchTenantConfig(defaultTenantId)
+                    }
+                } else {
+                    // Fallback to default tenant if no user ID
+                    const defaultTenantId = '550e8400-e29b-41d4-a716-446655440001'
+                    setSelectedTenantId(defaultTenantId)
+                    await fetchTenantConfig(defaultTenantId)
+                }
             } catch (err) {
                 console.error('❌ Failed to fetch user info:', err)
                 setError(err.message)
@@ -40,6 +67,40 @@ const Profile = () => {
 
         fetchData()
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const fetchUserDetails = async (userId) => {
+        try {
+            console.log(`🔍 Fetching user details for user: ${userId}`)
+            const response = await fetch(`/api/users/${userId}`)
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`)
+            }
+            const userDetails = await response.json()
+            console.log('👤 User details received:', userDetails)
+            return userDetails
+        } catch (err) {
+            console.error('❌ Failed to fetch user details:', err)
+            showError(`Failed to fetch user details: ${err.message}`, 'Error')
+            return null
+        }
+    }
+
+    const fetchTenantDetails = async (tenantId) => {
+        try {
+            console.log(`🔍 Fetching tenant details for tenant: ${tenantId}`)
+            const response = await fetch(`/api/tenants/${tenantId}`)
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`)
+            }
+            const tenantDetails = await response.json()
+            console.log('🏢 Tenant details received:', tenantDetails)
+            return tenantDetails
+        } catch (err) {
+            console.error('❌ Failed to fetch tenant details:', err)
+            showError(`Failed to fetch tenant details: ${err.message}`, 'Error')
+            return null
+        }
+    }
 
     const fetchTenantConfig = async (tenantId) => {
         try {
@@ -78,19 +139,22 @@ const Profile = () => {
         }
     }
 
+    const handleTenantSelect = async (tenantId) => {
+        setSelectedTenantId(tenantId)
+        setIsEditingConfig(false)
+        await fetchTenantConfig(tenantId)
+    }
+
     const handleConfigSubmit = async (e) => {
         e.preventDefault()
 
-        // Use a default tenant ID if not available
-        const tenantId = userInfo?.tenant_id || 'default-tenant-id'
-        
-        if (!tenantId) {
-            showError('Tenant ID not found', 'Error')
+        if (!selectedTenantId) {
+            showError('No tenant selected', 'Error')
             return
         }
 
         const result = await showApiNotification(
-            fetch(`/api/tenants/${tenantId}/configuration`, {
+            fetch(`/api/tenants/${selectedTenantId}/configuration`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -238,6 +302,32 @@ const Profile = () => {
                     <Settings size={20} />
                     <h3>Configuration</h3>
                 </div>
+
+                {/* Tenant Selector */}
+                {authorizedTenants.length > 0 && (
+                    <div className="profile-details">
+                        <div className="profile-field">
+                            <div className="field-label">
+                                <Shield size={16} />
+                                Tenant
+                            </div>
+                            <div className="field-value">
+                                <select 
+                                    value={selectedTenantId || ''} 
+                                    onChange={(e) => handleTenantSelect(e.target.value)}
+                                    className="form-input"
+                                    style={{ marginTop: '8px' }}
+                                >
+                                    {authorizedTenants.map(tenant => (
+                                        <option key={tenant.id} value={tenant.id}>
+                                            {tenant.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                     {!isEditingConfig ? (
                         <div className="profile-details">

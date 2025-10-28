@@ -494,6 +494,36 @@ app.post('/v1/tenants/:id/devices', (req, res) => {
     res.status(201).json(device);
 });
 
+// Users endpoints
+app.get('/v1/users/:id', (req, res) => {
+    const userId = req.params.id;
+    
+    // Mock user data with authorized tenants
+    const mockUser = {
+        id: userId,
+        tenants: [
+            '550e8400-e29b-41d4-a716-446655440001', // Acme Corporation
+            '550e8400-e29b-41d4-a716-446655440002'  // Green Farms Ltd
+        ]
+    };
+    
+    console.log(`👤 User details requested for user: ${userId}`);
+    res.json(mockUser);
+});
+
+app.put('/v1/users/:id', (req, res) => {
+    const userId = req.params.id;
+    const { tenants } = req.body;
+    
+    console.log(`👤 User tenant associations updated for user: ${userId}`, tenants);
+    
+    // Return the updated user data
+    res.json({
+        id: userId,
+        tenants: tenants || []
+    });
+});
+
 // Devices endpoints
 app.get('/v1/devices', (req, res) => {
     const { page = 1, limit = 10 } = req.query;
@@ -772,6 +802,8 @@ server.listen(PORT, HOST, () => {
     console.log('   PUT  /v1/tenants/{id}/configuration - Update tenant configuration');
     console.log('   GET  /v1/tenants/{id}/devices    - List tenant devices');
     console.log('   POST /v1/tenants/{id}/devices    - Adopt device');
+    console.log('   GET  /v1/users/{id}              - Get user details');
+    console.log('   PUT  /v1/users/{id}              - Update user tenant associations');
     console.log('   GET  /v1/devices                 - List all devices');
     console.log('   POST /v1/devices                 - Create device');
     console.log('   GET  /v1/devices/{id}            - Get device');
