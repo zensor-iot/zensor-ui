@@ -497,17 +497,20 @@ app.post('/v1/tenants/:id/devices', (req, res) => {
 // Users endpoints
 app.get('/v1/users/:id', (req, res) => {
     const userId = req.params.id;
-
+    
+    // Check if the ID is an email (contains @)
+    const isEmail = userId.includes('@');
+    
     // Mock user data with authorized tenants
     const mockUser = {
-        id: userId,
+        id: isEmail ? 'user-uuid-for-email' : userId, // Return UUID for email lookups
         tenants: [
             '550e8400-e29b-41d4-a716-446655440001', // Acme Corporation
             '550e8400-e29b-41d4-a716-446655440002'  // Green Farms Ltd
         ]
     };
-
-    console.log(`👤 User details requested for user: ${userId}`);
+    
+    console.log(`👤 User details requested for ${isEmail ? 'email' : 'user'}: ${userId}`);
     res.json(mockUser);
 });
 

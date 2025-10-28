@@ -29,9 +29,9 @@ const Profile = () => {
                 console.log('👤 User info received for profile:', data)
                 setUserInfo(data)
 
-                // If we have a user ID, fetch user details with authorized tenants
-                if (data.user) {
-                    const userDetails = await fetchUserDetails(data.user)
+                // If we have an email, fetch user details with authorized tenants
+                if (data.email) {
+                    const userDetails = await fetchUserDetails(data.email)
                     if (userDetails && userDetails.tenants && userDetails.tenants.length > 0) {
                         // Fetch details for each authorized tenant
                         const tenantPromises = userDetails.tenants.map(tenantId => fetchTenantDetails(tenantId))
@@ -52,7 +52,7 @@ const Profile = () => {
                         await fetchTenantConfig(defaultTenantId)
                     }
                 } else {
-                    // Fallback to default tenant if no user ID
+                    // Fallback to default tenant if no email
                     const defaultTenantId = '550e8400-e29b-41d4-a716-446655440001'
                     setSelectedTenantId(defaultTenantId)
                     await fetchTenantConfig(defaultTenantId)
@@ -68,10 +68,10 @@ const Profile = () => {
         fetchData()
     }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const fetchUserDetails = async (userId) => {
+    const fetchUserDetails = async (email) => {
         try {
-            console.log(`🔍 Fetching user details for user: ${userId}`)
-            const response = await fetch(`/api/users/${userId}`)
+            console.log(`🔍 Fetching user details for email: ${email}`)
+            const response = await fetch(`/api/users/${email}`)
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`)
             }
